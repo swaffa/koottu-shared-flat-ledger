@@ -818,56 +818,60 @@
   async function speak(text) {
     const replyLanguage = detectChatLanguage(text);
     stopSpeechOutput();
-    if (replyLanguage === 'ml') {
-      const controller = new AbortController();
-      speechAbortController = controller;
-      showToast(t('speechGenerating'));
-      try {
-        const response = await fetch('/api/speak', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }), signal: controller.signal
-        });
-        if (!response.ok) {
-          const result = await response.json().catch(() => ({}));
-          throw new Error(result.error || t('speechFailed'));
-        }
-        const audioUrl = URL.createObjectURL(await response.blob());
-        if (controller.signal.aborted) { URL.revokeObjectURL(audioUrl); return; }
-        speechAudioUrl = audioUrl;
-        const audio = new Audio(audioUrl);
-        speechAudio = audio;
-        const cleanup = () => {
-          if (speechAudio !== audio) return;
-          speechAudio = null;
-          if (speechAudioUrl === audioUrl) speechAudioUrl = '';
-          URL.revokeObjectURL(audioUrl);
-        };
-        audio.onended = cleanup;
-        audio.onerror = () => { cleanup(); showToast(t('speechFailed'), true); };
-        await audio.play();
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          stopSpeechOutput();
-          showToast(error.message || t('speechFailed'), true);
-        }
-      } finally {
-        if (speechAbortController === controller) speechAbortController = null;
+    const controller = new AbortController();
+    speechAbortController = controller;
+    showToast(t('speechGenerating'));
+    try {
+      const response = await fetch('/api/speak', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }), signal: controller.signal
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}));
+        throw new Error(result.error || t('speechFailed'));
       }
+      const audioUrl = URL.createObjectURL(await response.blob());
+      if (controller.signal.aborted) { URL.revokeObjectURL(audioUrl); return; }
+      speechAudioUrl = audioUrl;
+      const audio = new Audio(audioUrl);
+      speechAudio = audio;
+      const cleanup = () => {
+        if (speechAudio !== audio) return;
+        speechAudio = null;
+        if (speechAudioUrl === audioUrl) speechAudioUrl = '';
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onended = cleanup;
+      audio.onerror = cleanup;
+      await audio.play();
       return;
+    } catch (error) {
+      if (error.name === 'AbortError') return;
+      if (speechAudio) { speechAudio.pause(); speechAudio = null; }
+      if (speechAudioUrl) { URL.revokeObjectURL(speechAudioUrl); speechAudioUrl = ''; }
+      // Keep English replies speakable on devices where native browser speech is available.
+      // Malayalam uses Gemini TTS first because device voice packs vary by operating system.
+      const synth = window.speechSynthesis;
+      if (synth && window.SpeechSynthesisUtterance) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        const voiceLanguage = replyLanguage === 'ml' ? 'ml-IN' : 'en-IN';
+        utterance.lang = voiceLanguage;
+        const voices = synth.getVoices();
+        const prefix = replyLanguage === 'ml' ? 'ml' : 'en';
+        const matchingVoice = voices.find(voice => voice.lang.toLowerCase() === voiceLanguage.toLowerCase())
+          || voices.find(voice => voice.lang.toLowerCase().startsWith(`${prefix}-`))
+          || voices.find(voice => voice.lang.toLowerCase().startsWith('en-'));
+        if (matchingVoice) utterance.voice = matchingVoice;
+        utterance.onerror = () => showToast(t('speechFailed'), true);
+        synth.resume();
+        synth.speak(utterance);
+        if (speechAbortController === controller) speechAbortController = null;
+        return;
+      }
+      showToast(error.message || t('speechFailed'), true);
+    } finally {
+      if (speechAbortController === controller) speechAbortController = null;
     }
-    const synth = window.speechSynthesis;
-    if (!synth || !window.SpeechSynthesisUtterance) return showToast(t('noVoice'), true);
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voiceLanguage = 'en-IN';
-    utterance.lang = voiceLanguage;
-    const voices = synth.getVoices();
-    const matchingVoice = voices.find(voice => voice.lang.toLowerCase() === voiceLanguage.toLowerCase())
-      || voices.find(voice => voice.lang.toLowerCase().startsWith('en-in'))
-      || voices.find(voice => voice.lang.toLowerCase().startsWith('en-'));
-    if (matchingVoice) utterance.voice = matchingVoice;
-    utterance.onerror = () => showToast(t('speechFailed'), true);
-    synth.resume();
-    synth.speak(utterance);
   }
   function startVoiceInput() {
     if (voiceRecorder?.state === 'recording') {

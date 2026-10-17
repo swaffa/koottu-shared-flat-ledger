@@ -8,7 +8,7 @@ Koottu is an open-source shared-expense helper for roommates and PG residents. I
 - Choose which roommates share each expense and use equal or custom shares.
 - Review balances and suggested settlements; the app does the arithmetic from the saved ledger.
 - Ask Koottu questions or describe an expense in text, Malayalam, or English.
-- Record a voice note for transcription, attach a receipt photo, and hear Malayalam replies with Gemini speech.
+- Record a voice note for transcription, attach a receipt photo, and hear replies in English or Malayalam with Gemini speech.
 - Review and edit every expense or repayment draft before confirming it.
 
 Ledger data is stored in the current browser only. Invitation links are previews; they do not yet synchronize roommates across devices. Accounts, a shared database, secure invite tokens, and access controls are future work.
@@ -38,7 +38,7 @@ Receipt images are resized in the browser before upload to fit Vercel’s 4.5 MB
 
 Roommate and expense data stays in browser storage on each device. When a person uses the AI assistant, Koottu sends the message, relevant ledger context, and any attached receipt image to Google’s Gemini API. The Google API key stays on the server. The model drafts suggestions; Koottu calculates splits and balances, and nothing is added to the ledger until a person confirms it.
 
-Voice notes are transcribed by Gemini Flash. Malayalam replies use Gemini text-to-speech; English replies use the browser’s speech service. The app does not move money or connect to bank accounts.
+Voice notes are transcribed by Gemini Flash. Read-aloud uses Gemini text-to-speech for English and Malayalam, with browser speech as a fallback. The live Vercel app needs `GEMINI_API_KEY` set in Project Settings → Environment Variables for transcription and Gemini voice. The app does not move money or connect to bank accounts.
 
 ## Main files
 

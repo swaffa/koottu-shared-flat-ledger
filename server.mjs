@@ -351,8 +351,8 @@ async function transcribeAudio(payload) {
   return transcript.slice(0, 4000);
 }
 
-async function synthesizeMalayalamSpeech(payload) {
-  if (!geminiKey) throw Object.assign(new Error('Malayalam read-aloud needs the server-side Gemini API key.'), { status: 503 });
+async function synthesizeSpeech(payload) {
+  if (!geminiKey) throw Object.assign(new Error('Read-aloud needs the server-side Gemini API key.'), { status: 503 });
   const text = typeof payload.text === 'string' ? payload.text.trim() : '';
   if (!text || text.length > 2400) {
     throw Object.assign(new Error('The reply is empty or too long to read aloud.'), { status: 400 });
@@ -372,7 +372,7 @@ async function synthesizeMalayalamSpeech(payload) {
             text,
             annotations: [{
               type: 'speech_metadata',
-              style: 'Speak in natural, conversational Kerala Malayalam with clear pronunciation and a warm, lightly playful flatmate tone. Read the supplied text exactly. For mixed Malayalam and English, pronounce each language naturally. Do not translate, add, or omit words.'
+              style: 'Read the supplied text exactly in its original language. Use clear, natural Indian English or conversational Kerala Malayalam as appropriate, with a warm, lightly playful flatmate tone. For mixed Malayalam and English, pronounce each language naturally. Do not translate, add, or omit words.'
             }]
           }]
         }],
@@ -382,16 +382,16 @@ async function synthesizeMalayalamSpeech(payload) {
       signal: AbortSignal.timeout(45000)
     });
   } catch {
-    throw Object.assign(new Error('Could not reach Gemini Malayalam voice. Please try again.'), { status: 502 });
+    throw Object.assign(new Error('Could not reach Gemini voice. Please try again.'), { status: 502 });
   }
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = response.status === 429
-      ? 'Gemini Malayalam voice is busy or the API limit was reached. Try again shortly.'
+      ? 'Gemini voice is busy or the API limit was reached. Try again shortly.'
       : response.status >= 500
-        ? 'Gemini Malayalam voice is temporarily unavailable. Please try again.'
-        : `Gemini Malayalam voice could not process this reply (HTTP ${response.status}).`;
+        ? 'Gemini voice is temporarily unavailable. Please try again.'
+        : `Gemini voice could not process this reply (HTTP ${response.status}).`;
     throw Object.assign(new Error(message), { status: response.status === 429 ? 429 : response.status < 500 ? 400 : 502 });
   }
 
@@ -465,7 +465,7 @@ export async function handleRequest(request, response) {
   if (request.method === 'POST' && url.pathname === '/api/speak') {
     try {
       const payload = await readJson(request, 64 * 1024);
-      const audio = await synthesizeMalayalamSpeech(payload);
+      const audio = await synthesizeSpeech(payload);
       response.writeHead(200, { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
       response.end(audio);
     } catch (error) {
