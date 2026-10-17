@@ -2,6 +2,8 @@
 
 Koottu is an open-source shared-expense helper for roommates and PG residents. It keeps food, groceries, rent, bills, and trip costs in one ledger, calculates fair shares, and suggests who should settle with whom. Its Gemma-powered flatmate assistant understands English and Malayalam, can read receipt photos, and prepares expense drafts for people to review before saving.
 
+**Live demo:** [Open Koottu](https://koottu-shared-flat-ledger.vercel.app/)
+
 ## What works in this prototype
 
 - Add roommates and record expenses, including more than one person paying different amounts.
@@ -10,6 +12,7 @@ Koottu is an open-source shared-expense helper for roommates and PG residents. I
 - Ask Koottu questions or describe an expense in text, Malayalam, or English.
 - Record a voice note for transcription, attach a receipt photo, and hear replies in English or Malayalam with Gemini speech.
 - Review and edit every expense or repayment draft before confirming it.
+- The assistant shows when Gemma is connecting and waits for the connection check before sending AI requests, including receipt analysis.
 
 Ledger data is stored in the current browser only. Invitation links are previews; they do not yet synchronize roommates across devices. Accounts, a shared database, secure invite tokens, and access controls are future work.
 
