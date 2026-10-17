@@ -493,3 +493,6 @@ body { font-size: 15px; }
 .data-table td, .filter-tab, .search-box input { font-size: 12px; }
 .settlement-amount button, .household-check span { font-size: 10px; }
 .dialog-header .eyebrow { font-size: 10px; }
+
+/* Speech language controls stay compact beside the microphone. */
+.voice-language { max-width: 108px; min-height: 36px; border: 1px solid var(--line, #dce6da); border-radius: 8px; padding: 4px 6px; background: #f5f7f1; color: #183a2e; font: inherit; font-size: 12px; }

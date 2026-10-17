@@ -87,6 +87,9 @@
   let voiceChunks = [];
   let voiceStopTimer = null;
   let voiceStarting = false;
+  let browserRecognition = null;
+  let browserVoiceFailed = false;
+  let voiceTranscribing = false;
 
   function loadState() {
     try {
@@ -256,7 +259,7 @@
       ? `${currentHousehold().name} paid ₹1,800 for trip petrol, shared by all roommates`
       : `${currentHousehold().name} ട്രിപ്പ് പെട്രോളിന് ₹1,800 കൊടുത്തു, എല്ലാവരും പങ്കിടുന്നു`;
     const suggestion = (prompt, label) => `<button class="suggestion-chip" type="button" data-prompt="${escapeHtml(prompt)}">${escapeHtml(label)}</button>`;
-    return `<section class="card assistant-card" id="assistant-card"><div class="assistant-header"><div class="assistant-title"><span class="assistant-orb">✳</span><span><strong>${t('assistant')}</strong><small>${t('assistantSub')}</small></span></div><div class="assistant-tools"><button class="speech-toggle" id="read-aloud-button" type="button" title="${t('readAloud')}" aria-label="${t('readAloud')}">🔊 <span>${t('readAloud')}</span></button><span class="model-chip" id="model-chip">${onlineLabel}</span></div></div><div class="assistant-body"><div class="chat-history" id="chat-history"><div class="chat-message"><span class="chat-avatar">✳</span><div class="chat-bubble">${escapeHtml(chatWelcome())}</div></div></div><aside class="chat-side"><span class="chat-side-label">${t('tryThese')}</span>${suggestion(t('chipOwes'), t('chipOwes'))}${suggestion(t('chipTease'), t('chipTease'))}${suggestion(groceryPrompt, t('chipAdd'))}${tripHomes.length > 1 ? suggestion(tripPrompt, tripLabel) : ''}${suggestion(t('chipMalayalam'), t('chipMalayalam'))}</aside></div><div id="receipt-preview-wrap"></div><form class="assistant-compose" id="assistant-form"><div class="composer-wrap"><textarea id="assistant-input" rows="1" placeholder="${t('composerPlaceholder')}"></textarea><div class="composer-actions"><button class="composer-icon" id="receipt-button" type="button" title="${t('attachReceipt')}" aria-label="${t('attachReceipt')}">▧</button><button class="composer-icon" id="voice-button" type="button" title="${t('voiceInput')}" aria-label="${t('voiceInput')}">🎙</button></div></div><button class="send-button" type="submit" aria-label="${t('send')}">➤</button></form><div class="assistant-hint">${t('assistantHint')}</div></section>`;
+    return `<section class="card assistant-card" id="assistant-card"><div class="assistant-header"><div class="assistant-title"><span class="assistant-orb">✳</span><span><strong>${t('assistant')}</strong><small>${t('assistantSub')}</small></span></div><div class="assistant-tools"><button class="speech-toggle" id="read-aloud-button" type="button" title="${t('readAloud')}" aria-label="${t('readAloud')}">🔊 <span>${t('readAloud')}</span></button><span class="model-chip" id="model-chip">${onlineLabel}</span></div></div><div class="assistant-body"><div class="chat-history" id="chat-history"><div class="chat-message"><span class="chat-avatar">✳</span><div class="chat-bubble">${escapeHtml(chatWelcome())}</div></div></div><aside class="chat-side"><span class="chat-side-label">${t('tryThese')}</span>${suggestion(t('chipOwes'), t('chipOwes'))}${suggestion(t('chipTease'), t('chipTease'))}${suggestion(groceryPrompt, t('chipAdd'))}${tripHomes.length > 1 ? suggestion(tripPrompt, tripLabel) : ''}${suggestion(t('chipMalayalam'), t('chipMalayalam'))}</aside></div><div id="receipt-preview-wrap"></div><form class="assistant-compose" id="assistant-form"><div class="composer-wrap"><textarea id="assistant-input" rows="1" placeholder="${t('composerPlaceholder')}"></textarea><div class="composer-actions"><button class="composer-icon" id="receipt-button" type="button" title="${t('attachReceipt')}" aria-label="${t('attachReceipt')}">▧</button><select id="voice-language" class="voice-language" aria-label="Spoken language" title="Choose the language you will speak"><option value="en-IN">English</option><option value="ml-IN">Malayalam</option></select><button class="composer-icon" id="voice-button" type="button" title="${t('voiceInput')}" aria-label="${t('voiceInput')}">🎙</button></div></div><button class="send-button" type="submit" aria-label="${t('send')}">➤</button></form><div class="assistant-hint">${t('assistantHint')}</div></section>`;
   }
   function categoryBreakdown() {
     const categories = ['rent', 'groceries', 'food', 'travel'];
@@ -880,12 +883,77 @@
       if (speechAbortController === controller) speechAbortController = null;
     }
   }
+  function resetVoiceButton() {
+    const button = document.getElementById('voice-button');
+    if (!button) return;
+    button.classList.remove('recording');
+    button.disabled = false;
+    button.textContent = '🎙';
+    button.title = t('voiceInput');
+    button.setAttribute('aria-label', t('voiceInput'));
+    button.setAttribute('aria-pressed', 'false');
+  }
   function startVoiceInput() {
-    if (voiceRecorder?.state === 'recording') {
-      voiceRecorder.stop();
-      return;
-    }
+    if (voiceStarting || voiceTranscribing) return;
+    if (browserRecognition) { browserRecognition.stop(); return; }
+    if (voiceRecorder?.state === 'recording') { voiceRecorder.stop(); return; }
+    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (Recognition && !browserVoiceFailed) { startBrowserVoice(Recognition); return; }
     recordVoiceForTranscription();
+  }
+  function startBrowserVoice(Recognition) {
+    const input = document.getElementById('assistant-input');
+    const button = document.getElementById('voice-button');
+    if (!input || !button) return;
+    let recognition;
+    try { recognition = new Recognition(); }
+    catch { browserVoiceFailed = true; recordVoiceForTranscription(); return; }
+    browserRecognition = recognition;
+    recognition.lang = document.getElementById('voice-language')?.value || 'en-IN';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    const original = input.value.trim();
+    let transcript = '';
+    let failed = false;
+    recognition.onstart = () => {
+      button.classList.add('recording');
+      button.textContent = '■';
+      button.title = t('voiceStop');
+      button.setAttribute('aria-label', t('voiceStop'));
+      button.setAttribute('aria-pressed', 'true');
+      showToast('Listening with browser speech. Tap the microphone to stop.');
+      voiceStopTimer = setTimeout(() => recognition.stop(), 30000);
+    };
+    recognition.onresult = event => {
+      transcript = Array.from(event.results, result => result[0].transcript).join(' ').trim();
+      input.value = [original, transcript].filter(Boolean).join(' ');
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    recognition.onerror = event => {
+      failed = true;
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        showToast(t('voicePermission'), true);
+      } else if (event.error === 'no-speech') {
+        showToast('No speech heard. Tap the microphone and try again.', true);
+      } else if (event.error !== 'aborted') {
+        browserVoiceFailed = true;
+        showToast('Browser speech could not connect. Tap the microphone again to try cloud transcription, or type your message.', true);
+      }
+    };
+    recognition.onend = () => {
+      clearTimeout(voiceStopTimer);
+      if (browserRecognition === recognition) browserRecognition = null;
+      resetVoiceButton();
+      if (transcript) { input.focus(); showToast(t('voiceReady')); }
+      else if (!failed) showToast('No speech heard. Tap the microphone to try again.', true);
+    };
+    try { recognition.start(); }
+    catch {
+      browserRecognition = null;
+      browserVoiceFailed = true;
+      resetVoiceButton();
+      recordVoiceForTranscription();
+    }
   }
   async function recordVoiceForTranscription() {
     const button = document.getElementById('voice-button');
@@ -930,6 +998,8 @@
     voiceRecorder = null;
     voiceChunks = [];
     if (!blob.size) return showToast(t('micUnavailable'), true);
+    voiceTranscribing = true;
+    if (button) button.disabled = true;
     showToast(t('voiceTranscribing'));
     try {
       const dataUrl = await new Promise((resolve, reject) => {
@@ -943,13 +1013,21 @@
         body: JSON.stringify({ mimeType, data: dataUrl.split(',')[1] })
       });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || t('micUnavailable'));
+      if (!response.ok) {
+        const message = response.status === 429 || /quota|limit|resource.exhausted/i.test(result.error || '')
+          ? 'Cloud voice quota reached. Open Koottu in Chrome and refresh to use browser speech, or type your message.'
+          : result.error || t('micUnavailable');
+        throw new Error(message);
+      }
       const input = document.getElementById('assistant-input');
       input.value = [input.value.trim(), result.transcript].filter(Boolean).join(' ');
       input.focus();
       showToast(t('voiceReady'));
     } catch (error) {
       showToast(error.message || t('micUnavailable'), true);
+    } finally {
+      voiceTranscribing = false;
+      resetVoiceButton();
     }
   }
   function releaseVoiceStream() {

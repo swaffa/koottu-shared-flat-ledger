@@ -43,7 +43,7 @@ Receipt images are resized in the browser before upload to fit Vercel’s 4.5 MB
 
 Roommate and expense data stays in browser storage on each device. When a person uses the AI assistant, Koottu sends the message, relevant ledger context, and any attached receipt image to Google’s Gemini API. The Google API key stays on the server. The model drafts suggestions; Koottu calculates splits and balances, and nothing is added to the ledger until a person confirms it.
 
-Voice notes are transcribed by Gemini Flash. Read-aloud uses Gemini text-to-speech for English and Malayalam, with browser speech as a fallback. The live Vercel app needs `GEMINI_API_KEY` set in Project Settings → Environment Variables for transcription and Gemini voice. The app does not move money or connect to bank accounts.
+The microphone uses browser speech recognition where available (for example, Chrome), so dictation does not consume the application’s Gemini API quota. Choose English or Malayalam beside the microphone and review the transcript before sending. Browser recognition may still require internet access and browser microphone permission. When browser recognition is unavailable, recorded voice notes are transcribed by Gemini Flash; this fallback is subject to API quotas. Read-aloud uses Gemini text-to-speech for English and Malayalam, with browser speech as a fallback. The live Vercel app needs `GEMINI_API_KEY` set in Project Settings → Environment Variables for transcription and Gemini voice. The app does not move money or connect to bank accounts.
 
 ## Main files
 
