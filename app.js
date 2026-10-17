@@ -29,6 +29,8 @@
   Object.assign(translations.en, { voiceStop: 'Stop recording', voiceRecording: 'Recording… tap the mic again when finished.', voiceTranscribing: 'Transcribing your voice…', voicePermission: 'Allow microphone access in your browser, then try again.', voiceUnsupported: 'This browser cannot record audio. Try Chrome or type your expense.', voiceReady: 'Voice converted to text. Review it, then send.', micUnavailable: 'Could not start voice input. Check microphone access and try again.', assistantUnreachable: 'Gemma unavailable', assistantSub: 'Your flatmate, always around', readAloud: 'Read latest reply aloud', speakReply: 'Read this reply aloud', noReplyToRead: 'Koottu has not replied yet.', speechGenerating: 'Preparing Malayalam audio…', speechFailed: 'Could not play this reply. Check your browser audio settings.' });
   Object.assign(translations.en, { paymentDraftTitle: 'Payment draft', paymentDraftHint: 'Check the amount before recording this transfer.', confirmPayment: 'Confirm payment', paymentRecorded: 'Payment recorded. Remaining balance:', paymentOutdated: 'This balance changed while the draft was open. Check the current settlements and try again.', paymentTooLarge: 'That amount is more than the current outstanding balance. No payment was recorded.', assistantHint: 'Report a shared cost or a repayment. Koottu checks the ledger and asks you to confirm before saving.' });
   Object.assign(translations.ml, { voiceStop: 'റെക്കോർഡിംഗ് നിർത്തൂ', voiceRecording: 'റെക്കോർഡ് ചെയ്യുന്നു… കഴിഞ്ഞാൽ മൈക്ക് വീണ്ടും അമർത്തൂ.', voiceTranscribing: 'ശബ്ദം ടെക്സ്റ്റാക്കുന്നു…', voicePermission: 'ബ്രൗസറിൽ മൈക്ക് ഉപയോഗിക്കാൻ അനുമതി നൽകി വീണ്ടും ശ്രമിക്കൂ.', voiceUnsupported: 'ഈ ബ്രൗസറിൽ ശബ്ദം റെക്കോർഡ് ചെയ്യാനാകില്ല. Chrome ഉപയോഗിക്കൂ അല്ലെങ്കിൽ ടൈപ്പ് ചെയ്യൂ.', voiceReady: 'പറഞ്ഞത് ടെക്സ്റ്റാക്കി. പരിശോധിച്ച് അയക്കൂ.', micUnavailable: 'ശബ്ദ ഇൻപുട്ട് തുടങ്ങാനായില്ല. മൈക്ക് അനുമതി പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കൂ.', assistantUnreachable: 'Gemma ലഭ്യമല്ല' });
+  Object.assign(translations.en, { assistantChecking: 'Connecting to Gemma…' });
+  Object.assign(translations.ml, { assistantChecking: 'Gemma-യുമായി ബന്ധപ്പെടുന്നു…' });
   Object.assign(translations.en, { assistantHint: 'Speak in English or Malayalam and say how much each person paid. Koottu drafts the split for review; confirm before saving.' });
   Object.assign(translations.ml, { assistantHint: 'ഇംഗ്ലീഷിലോ മലയാളത്തിലോ ഓരോരുത്തരും എത്ര നൽകിയെന്ന് പറയൂ. Koottu പരിശോധിക്കാനുള്ള ഡ്രാഫ്റ്റ് തയ്യാറാക്കും; സേവ് ചെയ്യുന്നതിന് മുമ്പ് ഉറപ്പാക്കൂ.' });
   Object.assign(translations.en, {
@@ -71,6 +73,8 @@
   let searchTerm = '';
   let gemmaConnected = false;
   let geminiConfigured = false;
+  let gemmaStatusChecked = false;
+  let gemmaCheckPromise = null;
   let selectedReceipt = null;
   let payerAmountsTouched = false;
   let lastAssistantReply = '';
@@ -242,7 +246,7 @@
     return `<section class="card"><div class="card-header"><div><h2>${t('householdBalances')}</h2><p>${t('balanceHint')}</p></div></div><div class="household-mini-list">${rows}</div></section>`;
   }
   function assistantCard() {
-    const onlineLabel = gemmaConnected ? t('assistantOnline') : t('assistantOffline');
+    const onlineLabel = gemmaConnected ? t('assistantOnline') : gemmaStatusChecked ? t('assistantOffline') : t('assistantChecking');
     const tripHomes = activeHouseholds();
     const groceryPrompt = language === 'en'
       ? `${currentHousehold().name} paid ₹900 for groceries, shared by all roommates`
@@ -717,7 +721,11 @@
       : '';
     const deterministicAnswer = Boolean(localAnswer && !selectedReceipt && !expenseIntent);
     input.value = '';
+    const chatNode = appendMessage(chatLanguage === 'ml' ? 'ഒരു നിമിഷം…' : (gemmaStatusChecked ? 'Just a sec…' : t('assistantChecking')));
+    const bubble = chatNode?.querySelector('.chat-bubble');
+    if (!gemmaStatusChecked && !localAnswer) await checkGemma();
     if (!geminiConfigured && !gemmaConnected) {
+      chatNode?.remove();
       if (localAnswer) { appendMessage(localAnswer); return; }
       if (selectedReceipt) { appendMessage(t('aiUnavailable'), 'assistant', true); return; }
       const draft = localExpenseDraft(text, chatLanguage);
@@ -725,8 +733,7 @@
       else appendMessage(t('aiUnavailable'), 'assistant', true);
       return;
     }
-    const chatNode = appendMessage(chatLanguage === 'ml' ? 'ഒരു നിമിഷം…' : 'Just a sec…');
-    const bubble = chatNode?.querySelector('.chat-bubble');
+    if (bubble) bubble.textContent = chatLanguage === 'ml' ? 'ഒരു നിമിഷം…' : 'Just a sec…';
     try {
       const balances = getBalances();
       const monthKey = new Date().toISOString().slice(0, 7);
@@ -952,7 +959,7 @@
   }
   function updateModelChip() {
     const chip = document.getElementById('model-chip');
-    if (chip) chip.textContent = gemmaConnected ? t('assistantOnline') : geminiConfigured ? t('assistantUnreachable') : t('assistantOffline');
+    if (chip) chip.textContent = gemmaConnected ? t('assistantOnline') : !gemmaStatusChecked ? t('assistantChecking') : geminiConfigured ? t('assistantUnreachable') : t('assistantOffline');
   }
   function clearReceipt() { selectedReceipt = null; const file = document.getElementById('receipt-input'); file.value = ''; const preview = document.getElementById('receipt-preview-wrap'); if (preview) preview.innerHTML = ''; }
   async function prepareReceiptImage(file) {
@@ -996,12 +1003,25 @@
       showToast(t('receiptSelected'));
     }).catch(error => showToast(error.message || 'The receipt image could not be prepared.', true));
   }
-  async function checkGemma() {
-    try {
-      const response = await fetch('/api/status');
-      if (!response.ok) return;
-      const data = await response.json(); gemmaConnected = Boolean(data.gemmaReady); geminiConfigured = Boolean(data.configured); updateModelChip();
-    } catch { gemmaConnected = false; geminiConfigured = false; }
+  function checkGemma() {
+    if (gemmaCheckPromise) return gemmaCheckPromise;
+    gemmaCheckPromise = (async () => {
+      try {
+        const response = await fetch('/api/status', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Status check failed.');
+        const data = await response.json();
+        gemmaConnected = Boolean(data.gemmaReady);
+        geminiConfigured = Boolean(data.configured);
+      } catch {
+        gemmaConnected = false;
+        geminiConfigured = false;
+      } finally {
+        gemmaStatusChecked = true;
+        gemmaCheckPromise = null;
+        updateModelChip();
+      }
+    })();
+    return gemmaCheckPromise;
   }
   function showAbout() {
     const backdrop = document.getElementById('about-modal');
