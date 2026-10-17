@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7f2" />
+    <meta name="description" content="Koottu helps roommates and PG residents share rent, groceries, meals, trips and bills fairly." />
+    <title>Koottu — Shared flat expenses</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="#" aria-label="Koottu home">
+          <span class="brand-mark"><span></span><span></span><span></span></span>
+          <span class="brand-name">koottu<span class="brand-period">.</span></span>
+        </a>
+        <p class="brand-caption" data-i18n="brandCaption">Shared homes, fair splits</p>
+
+        <button class="building-switcher" id="building-switcher" type="button">
+          <span class="building-icon">⌂</span>
+          <span class="building-text"><strong id="building-name">Sreepadam Apartments</strong><small id="building-location">Kakkanad, Kochi</small></span>
+          <span class="chevron">⌄</span>
+        </button>
+        <button class="invite-sidebar-button" id="invite-button" type="button"><span>＋</span><span data-i18n="inviteRoommates">Invite roommates</span></button>
+
+        <div class="side-label" data-i18n="workspace">WORKSPACE</div>
+        <nav class="side-nav" aria-label="Main navigation">
+          <button class="nav-item active" data-view="overview"><span class="nav-icon">◫</span><span data-i18n="overview">Overview</span></button>
+          <button class="nav-item" data-view="expenses"><span class="nav-icon">↔</span><span data-i18n="expenses">Expenses</span><span class="nav-count" id="expense-count">4</span></button>
+          <button class="nav-item" data-view="households"><span class="nav-icon">⌂</span><span data-i18n="households">Households</span></button>
+          <button class="nav-item" data-view="rules"><span class="nav-icon">☷</span><span data-i18n="splitRules">Split rules</span></button>
+        </nav>
+
+        <div class="sidebar-spacer"></div>
+        <div class="privacy-note">
+          <span class="privacy-dot"></span>
+          <span><strong data-i18n="privateSpace">Private building space</strong><small data-i18n="membersOnly">Only invited households can see this ledger</small></span>
+        </div>
+        <div class="sidebar-bottom">
+          <button class="profile-button" id="profile-button" type="button">
+            <span class="avatar avatar-lime">F</span>
+            <span class="profile-copy"><strong id="profile-name">Fitha</strong><small id="profile-household">Room 01</small></span>
+            <span class="profile-more">···</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <div class="breadcrumbs"><span data-i18n="yourFlat">Your shared flat</span><span class="crumb-separator">/</span><strong id="crumb-view">Overview</strong></div>
+          <div class="topbar-actions">
+            <span class="local-badge"><span class="local-dot"></span><span data-i18n="demoMode">Local demo</span></span>
+            <button class="icon-button" id="help-button" type="button" aria-label="Help">?</button>
+          </div>
+        </header>
+        <div class="page-content" id="page-content"></div>
+      </main>
+    </div>
+
+    <div class="modal-backdrop" id="expense-modal" aria-hidden="true">
+      <section class="expense-dialog" role="dialog" aria-modal="true" aria-labelledby="expense-dialog-title">
+        <div class="dialog-header">
+          <div><span class="eyebrow" data-i18n="newEntry">NEW LEDGER ENTRY</span><h2 id="expense-dialog-title" data-i18n="addBuildingExpense">Add a shared expense</h2><p data-i18n="expenseDialogHint">Record who paid and which roommates share the cost.</p></div>
+          <button class="icon-button close-modal" type="button" aria-label="Close">×</button>
+        </div>
+        <form id="expense-form">
+          <div class="form-grid">
+            <label class="field field-wide"><span data-i18n="whatFor">What was it for?</span><input id="expense-title" name="title" required maxlength="70" placeholder="e.g. Water pump repair" /></label>
+            <label class="field"><span data-i18n="totalAmount">Total amount</span><div class="amount-input"><span>₹</span><input id="expense-amount" name="amount" required type="number" min="1" step="1" inputmode="numeric" placeholder="0" /></div></label>
+            <label class="field"><span data-i18n="category">Category</span><select id="expense-category" name="category"><option value="rent">Rent</option><option value="groceries">Groceries</option><option value="food">Food & meals</option><option value="travel">Trips & travel</option><option value="utilities">Utilities</option><option value="maintenance">Maintenance</option><option value="cleaning">Cleaning</option><option value="other">Other</option></select></label>
+            <div class="field field-wide"><div class="field-label-row"><span class="field-label" data-i18n="paidBy">Who paid?</span><span class="selection-count" id="payer-count">0 selected</span></div><span class="field-help" data-i18n="payerHelp">Select each roommate who contributed and enter how much they paid.</span><div class="payer-contributions" id="payer-contributions"></div><div class="contribution-summary" id="payer-summary" aria-live="polite"></div></div>
+            <label class="field"><span data-i18n="splitMethod">Split method</span><select id="split-method" name="splitMethod"><option value="equal">Equal share</option><option value="custom">Custom amounts</option></select></label>
+            <div class="field field-wide"><div class="field-label-row"><span class="field-label" data-i18n="homesSharing">Who should share this expense?</span><span class="selection-count" id="split-count">0 selected</span></div><span class="field-help" data-i18n="splitParticipantsHint">Select 1, 2, or more roommates. Only selected roommates share this cost.</span><div class="household-checks" id="household-checks"></div></div>
+            <div class="field field-wide custom-splits-wrap hidden" id="custom-splits-wrap"><span class="field-label" data-i18n="customShares">Enter each household's share</span><div id="custom-splits"></div></div>
+            <div class="split-preview field-wide" id="split-preview"><span class="preview-icon">✳</span><span data-i18n="previewHint">Choose households and add an amount to preview the split.</span></div>
+          </div>
+          <div class="dialog-footer"><button class="button button-quiet close-modal" type="button" data-i18n="cancel">Cancel</button><button class="button button-primary" type="submit"><span>＋</span><span data-i18n="saveExpense">Save expense</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="invite-modal" aria-hidden="true">
+      <section class="expense-dialog invite-dialog" role="dialog" aria-modal="true" aria-labelledby="invite-dialog-title">
+        <div class="dialog-header">
+          <div><span class="eyebrow" data-i18n="inviteEyebrow">YOUR SHARED FLAT</span><h2 id="invite-dialog-title" data-i18n="inviteTitle">Bring your roommates in</h2><p data-i18n="inviteIntro">Add flatmates to this demo ledger and share an invite preview.</p></div>
+          <button class="icon-button close-invite" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="invite-link-panel">
+          <label class="field"><span data-i18n="inviteLinkLabel">Invitation link</span><div class="invite-link-row"><input id="invite-link" readonly aria-label="Invitation link"><button class="button button-quiet button-small" id="share-invite" type="button" data-i18n="shareLink">Share</button><button class="button button-outline-green button-small" id="copy-invite" type="button" data-i18n="copyLink">Copy link</button></div></label>
+          <p class="prototype-note" data-i18n="inviteLimit">Prototype link only: cross-device joining and shared updates need a hosted backend.</p>
+        </div>
+        <form id="roommate-form" class="roommate-form">
+          <span class="invite-form-title" data-i18n="addRoommateTitle">Or add a roommate here</span>
+          <p class="prototype-note join-policy-note" data-i18n="newMemberNote">They join from today. Past expenses keep their original split and won’t be charged to them.</p>
+          <div class="form-grid">
+            <label class="field"><span data-i18n="roommateName">Roommate name</span><input id="roommate-name" name="name" required maxlength="40" placeholder="e.g. Riya" /></label>
+            <label class="field"><span data-i18n="roomLabel">Room / bed (optional)</span><input id="roommate-room" name="room" maxlength="30" placeholder="e.g. Room 2" /></label>
+          </div>
+          <div class="dialog-footer"><button class="button button-quiet close-invite" type="button" data-i18n="cancel">Cancel</button><button class="button button-primary" type="submit"><span>＋</span><span data-i18n="addRoommate">Add roommate</span></button></div>
+        </form>
+      </section>
+    </div>
+
+    <div class="modal-backdrop" id="about-modal" aria-hidden="true">
+      <section class="expense-dialog about-dialog" role="dialog" aria-modal="true" aria-labelledby="about-dialog-title">
+        <div class="dialog-header">
+          <div><span class="eyebrow">KOOTTU</span><h2 id="about-dialog-title" data-i18n="aboutTitle">How this prototype works</h2><p data-i18n="aboutBody">Roommates record rent, groceries, meals, bills and trips. Koottu calculates fair shares. Gemma can draft entries from text or a bill photo; voice is transcribed and read aloud by your browser.</p></div>
+          <button class="icon-button close-about" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="dialog-footer"><button class="button button-primary close-about" type="button" data-i18n="understoodButton">Got it</button></div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <input type="file" id="receipt-input" accept="image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp" hidden />
+    <script src="/app.js" defer></script>
+  </body>
+</html>
