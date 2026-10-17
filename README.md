@@ -4,6 +4,8 @@ Koottu is an open-source shared-expense helper for roommates and PG residents. I
 
 **Live demo:** [Open Koottu](https://koottu-shared-flat-ledger.vercel.app/)
 
+**License:** MIT. See [LICENSE](LICENSE).
+
 ## What works in this prototype
 
 - Add roommates and record expenses, including more than one person paying different amounts.
