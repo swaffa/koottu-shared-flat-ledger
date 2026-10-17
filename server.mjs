@@ -421,7 +421,7 @@ async function serveStatic(request, response) {
   }
 }
 
-const server = http.createServer(async (request, response) => {
+export async function handleRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
   if (request.method === 'GET' && url.pathname === '/api/status') {
     if (!geminiKey) return sendJson(response, 200, { gemmaReady: false, configured: false, model: null });
@@ -476,9 +476,12 @@ const server = http.createServer(async (request, response) => {
   }
   if (request.method !== 'GET' && request.method !== 'HEAD') return sendJson(response, 405, { error: 'Method not allowed.' });
   return serveStatic(request, response);
-});
+}
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`Koottu is available at http://localhost:${port}`);
-  console.log(geminiKey ? `Gemma drafts enabled (${model}).` : 'Gemma is not configured; manual and local demo features are ready.');
-});
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const server = http.createServer(handleRequest);
+  server.listen(port, '127.0.0.1', () => {
+    console.log(`Koottu is available at http://localhost:${port}`);
+    console.log(geminiKey ? `Gemma drafts enabled (${model}).` : 'Gemma is not configured; manual and local demo features are ready.');
+  });
+}

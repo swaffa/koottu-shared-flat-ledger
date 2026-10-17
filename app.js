@@ -951,21 +951,46 @@
     if (chip) chip.textContent = gemmaConnected ? t('assistantOnline') : geminiConfigured ? t('assistantUnreachable') : t('assistantOffline');
   }
   function clearReceipt() { selectedReceipt = null; const file = document.getElementById('receipt-input'); file.value = ''; const preview = document.getElementById('receipt-preview-wrap'); if (preview) preview.innerHTML = ''; }
+  async function prepareReceiptImage(file) {
+    const sourceUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(new Error('The receipt image could not be read.'));
+      reader.readAsDataURL(file);
+    });
+    const image = await new Promise((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error('The receipt image could not be opened.'));
+      element.src = sourceUrl;
+    });
+    const scale = Math.min(1, 1800 / Math.max(image.naturalWidth, image.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Receipt image processing is unavailable in this browser.');
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    let dataUrl = canvas.toDataURL('image/jpeg', 0.84);
+    if (dataUrl.length > 4_000_000) dataUrl = canvas.toDataURL('image/jpeg', 0.68);
+    if (dataUrl.length > 4_000_000) throw new Error('This receipt image is still too large after compression. Try a smaller photo.');
+    return dataUrl;
+  }
   function selectReceipt(file) {
     if (!file) return;
     const extension = file.name.toLowerCase().match(/\.(png|jpe?g|webp)$/)?.[1];
     const mimeType = ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp' })[extension] || ({ 'image/pjpeg': 'image/jpeg', 'image/jpg': 'image/jpeg' })[file.type] || file.type;
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(mimeType)) return showToast('Choose a PNG, JPG, or WebP receipt image.', true);
-    if (file.size > 8 * 1024 * 1024) return showToast('Please choose an image smaller than 8 MB.', true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result); selectedReceipt = { mimeType, data: dataUrl.split(',')[1], name: file.name };
+    if (file.size > 12 * 1024 * 1024) return showToast('Please choose an image smaller than 12 MB.', true);
+    prepareReceiptImage(file).then(dataUrl => {
+      selectedReceipt = { mimeType: 'image/jpeg', data: dataUrl.split(',')[1], name: file.name };
       document.getElementById('receipt-preview-wrap').innerHTML = `<div class="receipt-preview"><img src="${dataUrl}" alt="Receipt preview"><span>${t('receiptSelected')}: ${escapeHtml(file.name)}</span><button type="button" id="remove-receipt" aria-label="${t('remove')}">×</button></div>`;
       document.getElementById('remove-receipt').addEventListener('click', clearReceipt);
       document.getElementById('assistant-input').focus();
       showToast(t('receiptSelected'));
-    };
-    reader.readAsDataURL(file);
+    }).catch(error => showToast(error.message || 'The receipt image could not be prepared.', true));
   }
   async function checkGemma() {
     try {
