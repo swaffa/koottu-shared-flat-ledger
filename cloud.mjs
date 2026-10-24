@@ -24,6 +24,7 @@ export async function requireAccount(request) {
 export function validateLedger(state) {
   if (!state || !Array.isArray(state.households) || !Array.isArray(state.expenses) || !Array.isArray(state.settlements)) throw fail('Invalid ledger.');
   if (state.households.length > 100 || state.expenses.length > 10000 || state.settlements.length > 10000) throw fail('This group has reached its ledger size limit.');
+  if (state.building && (typeof state.building.name !== 'string' || !state.building.name.trim() || state.building.name.length > 70 || typeof state.building.location !== 'string' || state.building.location.length > 80)) throw fail('Check the group name and location.');
   const ids = new Set();
   for (const person of state.households) {
     if (typeof person.id !== 'string' || !person.id || ids.has(person.id) || typeof person.name !== 'string' || !person.name.trim() || person.name.length > 60) throw fail('Invalid roommate details.');

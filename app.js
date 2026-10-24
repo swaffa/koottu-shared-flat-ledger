@@ -57,7 +57,7 @@
   const colors = ['avatar-lime', 'avatar-blue', 'avatar-coral', 'avatar-purple'];
   const icons = { rent: '🏠', groceries: '🛒', food: '🍛', travel: '🛺', utilities: '⚡', maintenance: '🛠', cleaning: '🧹', other: '✳' };
   const defaults = {
-    building: { name: 'My shared home', location: 'A little space for your people' },
+    building: { name: 'My shared home', location: '' },
     currentHouseholdId: 'self',
     households: [
       { id: 'self', name: 'You', unit: '', members: ['You'], color: colors[0], active: true }
@@ -134,6 +134,8 @@
     return [...bytes].map(value => value.toString(16).padStart(2, '0')).join('').toUpperCase();
   }
   function normalizeState() {
+    if (!state.building) state.building = structuredClone(defaults.building);
+    if (!window.KoottuCloud?.active && !state.building.locationIsCustom && ['PG · Kochi', 'Kakkanad, Kochi', 'A little space for your people'].includes(state.building.location)) state.building.location = '';
     if (!Array.isArray(state.settlements)) state.settlements = [];
     if (!state.inviteCode) state.inviteCode = createInviteCode();
     state.households.forEach(home => { if (home.active === undefined) home.active = true; if (!Array.isArray(home.members)) home.members = [home.name]; });
@@ -200,7 +202,7 @@
   function avatar(home, extra = '') { return `<span class="avatar ${escapeHtml(home.color || colors[0])} ${extra}">${escapeHtml(initials(home))}</span>`; }
   function setHeader() {
     document.getElementById('building-name').textContent = state.building?.name || defaults.building.name;
-    document.getElementById('building-location').textContent = state.building?.location || defaults.building.location;
+    document.getElementById('building-location').textContent = state.building?.location || (window.KoottuCloud?.canManage ? 'Add a location' : 'Location not set');
     document.getElementById('expense-count').textContent = state.expenses.length;
     document.getElementById('crumb-view').textContent = t(view === 'rules' ? 'splitRules' : view === 'assistant' ? 'assistant' : view);
     document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -276,7 +278,7 @@
   }
   function overview() {
     const balance = getBalances()[state.currentHouseholdId] || 0;
-    return `${pageHeading('Overview', `${escapeHtml(state.building.name)} · Your shared expenses, in one place.`, `<div class="heading-actions"><button class="button button-quiet" data-action="invite">Invite roommates</button><button class="button button-primary" data-action="add-expense"><span>＋</span>Add expense</button></div>`)}
+    return `${pageHeading('Overview', `${escapeHtml(state.building.name)}${state.building.location ? ' · ' + escapeHtml(state.building.location) : ''} <button type="button" class="text-button group-settings-link" data-group-settings>Edit group</button>`, `<div class="heading-actions"><button class="button button-quiet" data-action="invite">Invite roommates</button><button class="button button-primary" data-action="add-expense"><span>＋</span>Add expense</button></div>`)}
       <div class="stats-grid"><article class="stat-card"><div class="stat-top"><span>Total shared spending</span></div><div class="stat-value">${money(totalExpenses())}</div><div class="stat-caption">${state.expenses.length} ${state.expenses.length===1?'expense':'expenses'} recorded</div></article><article class="stat-card"><div class="stat-top"><span>${balance<0?'You owe':'You’re owed'}</span></div><div class="stat-value ${balance<0?'negative':''}">${money(Math.abs(balance))}</div><div class="stat-caption">${balance===0?'All settled up':'Across this group'}</div></article><article class="stat-card"><div class="stat-top"><span>Your group</span></div><div class="stat-value">${activeHouseholds().length} <small>${activeHouseholds().length===1?'roommate':'roommates'}</small></div><button type="button" class="text-button" data-view="households">Manage roommates →</button></article></div>
       <div class="content-grid"><div class="overview-main"><section class="card"><div class="card-header"><div><h2>Recent expenses</h2><p>All recorded expenses</p></div><button class="text-button" data-view="expenses">See all →</button></div><div class="activity-list">${recentExpenses()}</div></section>${dashboardReminders()}</div><div class="right-column">${settlementsCard()}<div class="assistant-shortcut"><span>✳</span><h2>Need a hand with the math?</h2><p>Tell Koottu who paid, or share a receipt. Check the draft before saving.</p><button class="button button-outline-green" type="button" data-view="assistant">Ask Koottu →</button></div></div></div>`;
   }
@@ -566,6 +568,7 @@
     if (search) search.addEventListener('input', event => { searchTerm = event.target.value; const caret = event.target.selectionStart; render(); const next = document.getElementById('expense-search'); next.focus(); next.setSelectionRange(caret, caret); });
     document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', () => { const input = document.getElementById('assistant-input'); if (!input) return; input.value = button.dataset.prompt; submitAssistant(); }));
     document.querySelectorAll('[data-notifications]').forEach(button=>button.addEventListener('click',()=>window.KoottuCloud.notifications()));
+    document.querySelectorAll('[data-group-settings]').forEach(button=>button.addEventListener('click',openGroupSettings));
     const assistantForm = document.getElementById('assistant-form');
     if (assistantForm) assistantForm.addEventListener('submit', event => { event.preventDefault(); submitAssistant(); });
     const receiptButton = document.getElementById('receipt-button');
@@ -1200,6 +1203,25 @@
     })();
     return gemmaCheckPromise;
   }
+  function openGroupSettings() {
+    document.getElementById('group-settings-dialog')?.remove();
+    const canEdit = window.KoottuCloud.canManage;
+    const dialog = document.createElement('dialog'); dialog.id = 'group-settings-dialog'; dialog.className = 'notification-dialog';
+    dialog.setAttribute('aria-labelledby','group-settings-title');
+    dialog.innerHTML = `<div class="notification-heading"><h2 id="group-settings-title">Group details</h2><button type="button" class="icon-button" id="close-group-settings" aria-label="Close group details">×</button></div><p>${canEdit?'Make this space yours. Location is optional.':'Group details are managed by the group creator.'}</p><form id="group-settings-form"><label class="field">Group name<input id="settings-group-name" required maxlength="70" value="${escapeHtml(state.building.name)}" ${canEdit?'':'readonly'}></label><label class="field">Location <small>(optional)</small><input id="settings-group-location" maxlength="80" placeholder="Add your city, area, or building" value="${escapeHtml(state.building.location || '')}" ${canEdit?'':'readonly'}></label>${canEdit?'<button type="submit" class="button button-primary">Save changes</button>':''}</form>${window.KoottuCloud.signedIn?'<button type="button" class="text-button" id="switch-group-from-settings">Switch group →</button>':''}`;
+    document.body.append(dialog); dialog.showModal();
+    document.getElementById('close-group-settings').onclick = () => dialog.close();
+    document.getElementById('switch-group-from-settings')?.addEventListener('click',()=>{dialog.close();window.KoottuCloud.groupPicker();});
+    document.getElementById('group-settings-form').onsubmit = async event => {
+      event.preventDefault(); if (!canEdit || window.KoottuCloud.saving) return;
+      const name = document.getElementById('settings-group-name').value.trim();
+      if (!name) return;
+      const button = event.submitter; button.disabled = true;
+      state.building = {name, location:document.getElementById('settings-group-location').value.trim(), locationIsCustom:true};
+      if (await saveState()) { dialog.close(); render(); showToast('Group details updated.'); }
+      button.disabled = false;
+    };
+  }
   function showAbout() {
     const backdrop = document.getElementById('about-modal');
     backdrop.classList.add('open'); backdrop.setAttribute('aria-hidden', 'false');
@@ -1213,7 +1235,7 @@
   document.getElementById('share-invite').addEventListener('click', shareInviteLink);
   document.getElementById('roommate-form').addEventListener('submit', addRoommate);
   document.getElementById('help-button').addEventListener('click', showAbout);
-  document.getElementById('building-switcher').addEventListener('click', () => window.KoottuCloud.profile());
+  document.getElementById('building-switcher').addEventListener('click', openGroupSettings);
   document.getElementById('profile-button').addEventListener('click', () => window.KoottuCloud.profile());
   document.getElementById('expense-modal').addEventListener('click', event => { if (event.target.id === 'expense-modal' || event.target.closest('.close-modal')) closeModal(); });
   document.getElementById('about-modal').addEventListener('click', event => {
@@ -1243,10 +1265,10 @@
     getState: () => state,
     setState: next => { if (next.currentHouseholdId !== state.currentHouseholdId || next.building?.name !== state.building?.name) resetChat(); state = next; normalizeState(); },
     busy: () => assistantBusy || voiceStarting || Boolean(browserRecognition) || voiceRecorder?.state === 'recording' || document.querySelector('.modal-backdrop.open') || document.getElementById('assistant-input')?.value.trim(),
-    startGuest: (name, group) => {
+    startGuest: (name, group, location = '') => {
       resetChat();
       if (!state.households.length) state = structuredClone(defaults);
-      const me = currentHousehold(); me.name = name; me.members = [name]; state.building.name = group;
+      const me = currentHousehold(); me.name = name; me.members = [name]; state.building = { name: group, location, locationIsCustom:true };
       normalizeState(); saveState();
     }
   });

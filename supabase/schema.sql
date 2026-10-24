@@ -75,6 +75,8 @@ create or replace function public.koottu_save_group(target_group uuid,expected_r
  select * into g from public.koottu_groups where id=target_group for update;
  if g.revision<>expected_revision then raise exception 'LEDGER_CONFLICT'; end if;
  if jsonb_typeof(new_snapshot->'households') is distinct from 'array' or jsonb_typeof(new_snapshot->'expenses') is distinct from 'array' or jsonb_typeof(new_snapshot->'settlements') is distinct from 'array' or jsonb_array_length(new_snapshot->'households')>100 or jsonb_array_length(new_snapshot->'expenses')>10000 or octet_length(new_snapshot::text)>3000000 then raise exception 'Invalid ledger'; end if;
+ if new_snapshot->'building' is not null and (coalesce(length(trim(new_snapshot->'building'->>'name')),0) not between 1 and 70 or length(coalesce(new_snapshot->'building'->>'location',''))>80) then raise exception 'Invalid group details'; end if;
+ if g.owner_id<>auth.uid() and new_snapshot->'building' is distinct from g.snapshot->'building' then raise exception 'Only the group creator can edit group details'; end if;
  if g.owner_id<>auth.uid() and new_snapshot->'households'<>g.snapshot->'households' then raise exception 'Only the group creator can manage the roommate list'; end if;
  -- Existing expense and repayment history is append-only for all members.
  if exists(select 1 from jsonb_array_elements(g.snapshot->'expenses') old where not (new_snapshot->'expenses') @> jsonb_build_array(old)) or exists(select 1 from jsonb_array_elements(g.snapshot->'settlements') old where not (new_snapshot->'settlements') @> jsonb_build_array(old)) then raise exception 'Existing ledger history cannot be changed'; end if;
@@ -103,7 +105,7 @@ create or replace function public.koottu_save_group(target_group uuid,expected_r
  for e in select * from jsonb_array_elements(new_snapshot->'settlements') loop
  if not (e->>'from'=any(ids)) or not (e->>'to'=any(ids)) or e->>'from'=e->>'to' or (e->>'amount')::numeric<=0 or (e->>'amount')::numeric<>trunc((e->>'amount')::numeric) or (e->>'paid')::boolean is distinct from true then raise exception 'Invalid repayment'; end if;
  end loop;
- update public.koottu_groups set snapshot=new_snapshot-'currentHouseholdId'-'inviteCode',revision=revision+1,updated_at=now() where id=target_group returning * into g;
+ update public.koottu_groups set name=coalesce(new_snapshot->'building'->>'name',name),location=coalesce(new_snapshot->'building'->>'location',location),snapshot=new_snapshot-'currentHouseholdId'-'inviteCode',revision=revision+1,updated_at=now() where id=target_group returning * into g;
  return jsonb_build_object('id',g.id,'revision',g.revision,'snapshot',g.snapshot,'currentHouseholdId',auth.uid());
  end;
 $$;

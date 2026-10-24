@@ -6,7 +6,7 @@ Koottu is an MIT-licensed expense-sharing web app for flatmates, friends, and PG
 
 ## Personal and shared spaces
 
-- Personal onboarding replaces the fixed Fitha demo identity.
+- Personal onboarding replaces the fixed Fitha demo identity. Group names and optional locations can be set during setup or edited through Group details.
 - Private mode saves a ledger on the current device without an account.
 - Shared accounts use Supabase email/password authentication with email confirmation and password recovery.
 - Signed-in people can create separate groups, invite roommates, and see the same ledger across devices after refresh or idle sync.

@@ -665,3 +665,6 @@ body { font-size: 16px; background: #f7f8f4; }
 .suggestion-chip { flex: 0 0 auto; white-space: nowrap; padding: 9px 13px; font-size: 12px; border-radius: 20px; color: #6d7c63; background: #f8faf4; }
 .chat-history, .assistant-focus .chat-history { min-height: 220px; max-height: 440px; }
 @media(max-width:620px) { .chat-history, .assistant-focus .chat-history { min-height: 155px; max-height: 320px; } .assistant-body { gap: 10px; } .suggestion-chip { padding: 7px 11px; font-size: 11px; } }
+.group-settings-link { margin-left: 12px; font-size: 12px; vertical-align: baseline; }
+#switch-group-from-settings { margin-top: 22px; }
+#settings-group-name[readonly], #settings-group-location[readonly] { background: #f6f8f1; color: #788670; }

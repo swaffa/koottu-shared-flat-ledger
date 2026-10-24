@@ -58,11 +58,11 @@
     };
   }
   function guestScreen() {
-    shell(`<span class="eyebrow">A LITTLE SPACE OF YOUR OWN</span><h2>Start with your flat.</h2><p class="account-intro">Try Koottu privately. Your ledger will be saved in this browser.</p><form id="guest-form"><label class="field">Your name<input id="guest-name" autocomplete="given-name" required maxlength="60" placeholder="e.g. Riya"></label><label class="field">Your group<input id="guest-group" required maxlength="70" value="Our happy little flat"></label><button class="button button-primary account-submit">Open my dashboard →</button></form><button type="button" class="text-button" id="back-signin">Back to sign in</button>`);
+    shell(`<span class="eyebrow">A LITTLE SPACE OF YOUR OWN</span><h2>Start with your flat.</h2><p class="account-intro">Try Koottu privately. Your ledger will be saved in this browser.</p><form id="guest-form"><label class="field">Your name<input id="guest-name" autocomplete="given-name" required maxlength="60" placeholder="e.g. Riya"></label><label class="field">Your group<input id="guest-group" required maxlength="70" value="Our happy little flat"></label><label class="field">Location <small>(optional)</small><input id="guest-location" maxlength="80" placeholder="Your city, area, or building"></label><button class="button button-primary account-submit">Open my dashboard →</button></form><button type="button" class="text-button" id="back-signin">Back to sign in</button>`);
     $('back-signin').onclick=()=>authScreen('login');
     $('guest-form').onsubmit=event=>{
       event.preventDefault();activeGroup=null;clearInterval(poll);accepted=null;
-      hooks.startGuest($('guest-name').value.trim(),$('guest-group').value.trim());showApp();localStorage.setItem('koottu.guest.started','1');
+      hooks.startGuest($('guest-name').value.trim(),$('guest-group').value.trim(),$('guest-location').value.trim());showApp();localStorage.setItem('koottu.guest.started','1');
     };
   }
   function passwordScreen(){
@@ -78,7 +78,7 @@
   }
   function groupPicker() {
     clearInterval(poll);
-    shell(`<span class="eyebrow">HEY ${escape(user?.name||'ROOMMATE')}</span><h2>Where are we sharing?</h2><p class="account-intro">Keep each flat or trip in its own group.</p><div class="group-list">${groups.map(g=>`<button class="group-choice" data-group="${escape(g.id)}"><span>⌂</span><span><strong>${escape(g.name)}</strong><small>${escape(g.location||'Shared group')}</small></span><b>→</b></button>`).join('')||'<p class="empty-groups">Your first shared space starts here.</p>'}</div><form id="group-create"><label class="field">New group name<input id="group-name" required maxlength="70" placeholder="e.g. The Chai Club"></label><label class="field">Location or description <small>(optional)</small><input id="group-location" maxlength="80" placeholder="e.g. Kakkanad · Flat 302"></label><button class="button button-primary account-submit">Create a group →</button></form><details class="join-with-link"><summary>Have an invitation link?</summary><form id="join-group"><label class="field">Invitation link<input id="join-token" required placeholder="Paste your Koottu invitation"></label><button class="button button-outline-green">Join group</button></form></details><button class="text-button" type="button" id="sign-out">Sign out</button>`);
+    shell(`<span class="eyebrow">HEY ${escape(user?.name||'ROOMMATE')}</span><h2>Where are we sharing?</h2><p class="account-intro">Keep each flat or trip in its own group.</p><div class="group-list">${groups.map(g=>`<button class="group-choice" data-group="${escape(g.id)}"><span>⌂</span><span><strong>${escape(g.name)}</strong><small>${escape(g.location||'Shared group')}</small></span><b>→</b></button>`).join('')||'<p class="empty-groups">Your first shared space starts here.</p>'}</div><form id="group-create"><label class="field">New group name<input id="group-name" required maxlength="70" placeholder="e.g. The Chai Club"></label><label class="field">Location or description <small>(optional)</small><input id="group-location" maxlength="80" placeholder="Your city, area, or building"></label><button class="button button-primary account-submit">Create a group →</button></form><details class="join-with-link"><summary>Have an invitation link?</summary><form id="join-group"><label class="field">Invitation link<input id="join-token" required placeholder="Paste your Koottu invitation"></label><button class="button button-outline-green">Join group</button></form></details><button class="text-button" type="button" id="sign-out">Sign out</button>`);
     gate().querySelectorAll('[data-group]').forEach(b=>b.onclick=()=>loadGroup(b.dataset.group).catch(e=>message(e.message,true)));
     $('group-create').onsubmit=async e=>{e.preventDefault();const b=e.submitter;b.disabled=true;try{const g=await api('create',{name:$('group-name').value,location:$('group-location').value});await afterCreate(g.id);}catch(error){message(error.message,true);}finally{b.disabled=false;}};
     $('join-group').onsubmit=async e=>{e.preventDefault();let value=$('join-token').value.trim();try{if(value.includes('://'))value=new URL(value).searchParams.get('invite');await join(value);}catch(error){message(error.message,true);}};
@@ -106,7 +106,9 @@
     saving=true;updateBadges();
     try {
       const result=await api('save',{groupId:activeGroup.id,revision:activeGroup.revision,state:next});
-      activeGroup.revision=result.revision;accepted=structuredClone(result.snapshot);return true;
+      activeGroup.revision=result.revision;accepted=structuredClone(result.snapshot);
+      if(next.building){activeGroup.name=next.building.name;activeGroup.location=next.building.location;const listed=groups.find(g=>g.id===activeGroup.id);if(listed)Object.assign(listed,{name:next.building.name,location:next.building.location});}
+      return true;
     }catch(error){
       if(error.status===409){const latest=await api('load',{groupId:activeGroup.id});apply(latest);}
       else if(accepted)hooks.setState({...structuredClone(accepted),currentHouseholdId:user.id});
