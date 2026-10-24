@@ -1,4 +1,6 @@
 import http from 'node:http';
+import {runReminders} from './reminders.mjs';
+import { accountsEnabled, accountRoute, requireAccount, consumeAISlot } from './cloud.mjs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -167,6 +169,16 @@ async function draftWithGemma(payload) {
   const userContext = {
     prompt: String(payload.text || '').slice(0, 4000) || (hasReceipt ? receiptTask : ''),
     languageHint: payload.language === 'ml' ? 'Malayalam' : 'English',
+    conversation: Array.isArray(payload.conversation) ? payload.conversation.slice(-10).map(m => ({role:m.role === 'assistant' ? 'assistant':'user',text:String(m.text || '').slice(0,1800)})) : [],
+    pendingDraft: payload.pendingDraft && typeof payload.pendingDraft === 'object' ? {
+      title:String(payload.pendingDraft.title||'').slice(0,100),amount:Math.max(0,Number(payload.pendingDraft.amount)||0),
+      category:String(payload.pendingDraft.category||'other').slice(0,20),
+      payerId:ids.has(payload.pendingDraft.payerId)?payload.pendingDraft.payerId:null,
+      participantIds:Array.isArray(payload.pendingDraft.participantIds)?payload.pendingDraft.participantIds.filter(id=>ids.has(id)):[],
+      contributions:Object.fromEntries(Object.entries(payload.pendingDraft.contributions||{}).filter(([id,n])=>ids.has(id)&&Number.isFinite(Number(n))).slice(0,30)),
+      shares:Object.fromEntries(Object.entries(payload.pendingDraft.shares||{}).filter(([id,n])=>ids.has(id)&&Number.isFinite(Number(n))).slice(0,30)),
+      splitMethod:payload.pendingDraft.splitMethod==='custom'?'custom':'equal'
+    } : null,
     currentUser: validHouseholds.some(home => home.id === payload.currentUserId) ? validHouseholds.find(home => home.id === payload.currentUserId) : null,
     households: validHouseholds,
     ledgerBalances: payload.localBalances && typeof payload.localBalances === 'object' ? payload.localBalances : {},
@@ -180,7 +192,7 @@ async function draftWithGemma(payload) {
         : {}
     } : {},
     recentExpenses: Array.isArray(payload.recentExpenses) ? payload.recentExpenses.slice(0, 30) : [],
-    instruction: 'Prepare an expense or completed-payment draft only; do not claim it has been saved.'
+    instruction: 'Use conversation and pendingDraft to resolve follow-up corrections such as changing participants or amounts. Return a full replacement draft, never a partial patch. Keep unmentioned fields unchanged only when they are explicitly present in the pending draft. Do not claim it has been saved. For casual messages, answer warmly in the user language; use light humor when invited. Never shame people for essentials or debt.'
   };
   const parts = [{ text: `User request and ledger context (JSON):\n${JSON.stringify(userContext)}\nFor a receipt, use the visible final payable amount only. Return exactly one valid JSON object matching the required schema, with no markdown or surrounding explanation.` }];
   if (payload.receipt && typeof payload.receipt.data === 'string') {
@@ -193,27 +205,27 @@ async function draftWithGemma(payload) {
   const requestBody = JSON.stringify({
     systemInstruction: { parts: [{ text: hasReceipt ? receiptSystemPrompt : `${systemPrompt}\n${settlementGuidance}` }] },
     contents: [{ role: 'user', parts }],
-    generationConfig: { temperature: hasReceipt ? 0.2 : 0.7, topP: 0.95, topK: 64, maxOutputTokens: 512 }
+    generationConfig: { temperature: hasReceipt ? 0.2 : 0.7, topP: 0.95, topK: 64, maxOutputTokens: 1024 }
   });
   let response;
   let body = {};
-  for (let attempt = 0; attempt < 3; attempt += 1) {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
         body: requestBody,
-        signal: AbortSignal.timeout(45000)
+        signal: AbortSignal.timeout(30000)
       });
       body = await response.json().catch(() => ({}));
     } catch (error) {
-      if (attempt < 2) {
+      if (attempt < 1) {
         await new Promise(resolve => setTimeout(resolve, 350 * (2 ** attempt)));
         continue;
       }
       throw Object.assign(new Error('Could not reach Gemma. Please try again in a moment.'), { status: 502 });
     }
-    if (response.ok || response.status < 500 || attempt === 2) break;
+    if (response.ok || response.status < 500 || attempt === 1) break;
     await new Promise(resolve => setTimeout(resolve, 350 * (2 ** attempt)));
   }
   if (!response.ok) {
@@ -409,7 +421,7 @@ async function serveStatic(request, response) {
   let relative;
   try { relative = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, ''); }
   catch { return sendJson(response, 400, { error: 'Invalid path.' }); }
-  if (!['index.html', 'styles.css', 'app.js'].includes(relative)) return sendJson(response, 404, { error: 'Not found.' });
+  if (!['index.html', 'styles.css', 'app.js', 'account.js'].includes(relative)) return sendJson(response, 404, { error: 'Not found.' });
   const resolved = path.resolve(root, relative);
   if (!resolved.startsWith(`${root}${path.sep}`)) return sendJson(response, 403, { error: 'Forbidden.' });
   try {
@@ -423,14 +435,29 @@ async function serveStatic(request, response) {
 
 export async function handleRequest(request, response) {
   const url = new URL(request.url, `http://${request.headers.host || 'localhost'}`);
+  response.setHeader('X-Content-Type-Options', 'nosniff');
+  response.setHeader('Referrer-Policy', 'same-origin');
+  if (url.pathname === '/api/reminders/run') {
+    if(request.method!=='GET')return sendJson(response,405,{error:'Method not allowed.'});
+    try{return sendJson(response,200,await runReminders(request));}catch(error){return sendJson(response,error.status||500,{error:error.message});}
+  }
+  if (url.pathname.startsWith('/api/account/')) {
+    try {
+      if (request.method !== 'POST' && !(request.method === 'GET' && ['/api/account/config','/api/account/groups'].includes(url.pathname))) return sendJson(response,405,{error:'Method not allowed.'});
+      return sendJson(response,200,await accountRoute(request,url.pathname,request.method === 'POST' ? await readJson(request,4*1024*1024) : undefined));
+    } catch(error) { return sendJson(response,error.status || 500,{error:error.message || 'Account request failed.'}); }
+  }
+  if (accountsEnabled && request.method === 'POST' && ['/api/parse-expense','/api/transcribe','/api/speak'].includes(url.pathname)) {
+    try { const {token}=await requireAccount(request); await consumeAISlot(token); } catch(error) { return sendJson(response,error.status || 401,{error:error.message}); }
+  }
   if (request.method === 'GET' && url.pathname === '/api/status') {
-    if (!geminiKey) return sendJson(response, 200, { gemmaReady: false, configured: false, model: null });
+    if (!geminiKey) return sendJson(response, 200, { gemmaReady: false, configured: false, model: null, accountRequired: accountsEnabled });
     try {
       const modelCheck = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}`, {
         headers: { 'x-goog-api-key': geminiKey },
         signal: AbortSignal.timeout(10000)
       });
-      return sendJson(response, 200, { gemmaReady: modelCheck.ok, configured: true, model: modelCheck.ok ? model : null });
+      return sendJson(response, 200, { gemmaReady: modelCheck.ok, configured: true, accountRequired: accountsEnabled, model: modelCheck.ok ? model : null });
     } catch {
       return sendJson(response, 200, { gemmaReady: false, configured: true, model: null });
     }

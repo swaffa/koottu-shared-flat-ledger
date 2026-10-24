@@ -1,13 +1,17 @@
 {
   "name": "koottu-shared-flat-ledger",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=22"
   },
-  "description": "A Malayalam-friendly shared expense ledger for roommates and PG residents.",
+  "description": "Shared expenses and a helpful AI flatmate for roommates and friends.",
   "scripts": {
-    "start": "node --env-file-if-exists=.env.local server.mjs"
+    "start": "node --env-file-if-exists=.env.local server.mjs",
+    "test": "node --test tests/cloud.test.mjs && node tests/database.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.11"
   }
 }

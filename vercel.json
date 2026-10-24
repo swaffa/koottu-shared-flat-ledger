@@ -3,5 +3,11 @@
     "api/[...path].js": {
       "maxDuration": 120
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/reminders/run",
+      "schedule": "30 3 * * 1"
+    }
+  ]
 }

@@ -12,7 +12,8 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <div class="app-shell">
+    <div id="welcome-screen" class="welcome-screen"><div class="boot-message">✳ Making room for you…</div></div>
+    <div class="app-shell" hidden>
       <aside class="sidebar">
         <a class="brand" href="#" aria-label="Koottu home">
           <span class="brand-mark"><span></span><span></span><span></span></span>
@@ -29,10 +30,11 @@
 
         <div class="side-label" data-i18n="workspace">WORKSPACE</div>
         <nav class="side-nav" aria-label="Main navigation">
-          <button class="nav-item active" data-view="overview"><span class="nav-icon">◫</span><span data-i18n="overview">Overview</span></button>
-          <button class="nav-item" data-view="expenses"><span class="nav-icon">↔</span><span data-i18n="expenses">Expenses</span><span class="nav-count" id="expense-count">4</span></button>
-          <button class="nav-item" data-view="households"><span class="nav-icon">⌂</span><span data-i18n="households">Households</span></button>
-          <button class="nav-item" data-view="rules"><span class="nav-icon">☷</span><span data-i18n="splitRules">Split rules</span></button>
+          <button class="nav-item active" data-view="overview" aria-label="Overview"><span class="nav-icon">◫</span><span data-i18n="overview">Overview</span></button>
+          <button class="nav-item" data-view="expenses" aria-label="Expenses"><span class="nav-icon">↔</span><span data-i18n="expenses">Expenses</span><span class="nav-count" id="expense-count">4</span></button>
+          <button class="nav-item" data-view="households" aria-label="Roommates"><span class="nav-icon">⌂</span><span data-i18n="households">Households</span></button>
+          <button class="nav-item" data-view="assistant" aria-label="Ask Koottu"><span class="nav-icon">✳</span><span>Ask Koottu</span></button>
+          <button class="nav-item" data-view="rules" aria-label="Split rules"><span class="nav-icon">☷</span><span data-i18n="splitRules">Split rules</span></button>
         </nav>
 
         <div class="sidebar-spacer"></div>
@@ -52,7 +54,7 @@
       <main class="main-area">
         <header class="topbar">
           <div class="breadcrumbs"><span data-i18n="yourFlat">Your shared flat</span><span class="crumb-separator">/</span><strong id="crumb-view">Overview</strong></div>
-          <div class="topbar-actions">
+          <div class="topbar-actions"><span id="account-toolbar"></span>
             <span class="local-badge"><span class="local-dot"></span><span data-i18n="demoMode">Local demo</span></span>
             <button class="icon-button" id="help-button" type="button" aria-label="Help">?</button>
           </div>
@@ -117,6 +119,7 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <input type="file" id="receipt-input" accept="image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp" hidden />
+    <script src="/account.js" defer></script>
     <script src="/app.js" defer></script>
   </body>
 </html>

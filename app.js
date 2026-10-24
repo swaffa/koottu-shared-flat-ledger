@@ -26,7 +26,7 @@
   Object.assign(translations.ml, { shareLink: 'പങ്കിടൂ' });
   Object.assign(translations.en, { aboutBody: 'Roommates track rent, groceries, meals, bills and trips. Koottu calculates fair shares. Gemma drafts from text or bill photos; voice notes are transcribed before you review and send them. Invite links are previews until a shared backend is connected.' });
   Object.assign(translations.ml, { aboutBody: 'വാടക, പലചരക്ക്, ഭക്ഷണം, ബില്ലുകൾ, യാത്രകൾ എന്നിവ റൂംമേറ്റ്‌സിന് രേഖപ്പെടുത്താം. Koottu വിഹിതം കൂട്ടും. ടെക്സ്റ്റും ബിൽ ഫോട്ടോയും Gemma ഡ്രാഫ്റ്റാക്കും; ശബ്ദം ടെക്സ്റ്റാക്കിയ ശേഷം പരിശോധിച്ച് അയക്കാം. പങ്കിട്ട സെർവർ ചേർക്കുന്നതുവരെ ഇൻവൈറ്റ് ലിങ്ക് പ്രിവ്യൂ മാത്രമാണ്.' });
-  Object.assign(translations.en, { voiceStop: 'Stop recording', voiceRecording: 'Recording… tap the mic again when finished.', voiceTranscribing: 'Transcribing your voice…', voicePermission: 'Allow microphone access in your browser, then try again.', voiceUnsupported: 'This browser cannot record audio. Try Chrome or type your expense.', voiceReady: 'Voice converted to text. Review it, then send.', micUnavailable: 'Could not start voice input. Check microphone access and try again.', assistantUnreachable: 'Gemma unavailable', assistantSub: 'Your flatmate, always around', readAloud: 'Read latest reply aloud', speakReply: 'Read this reply aloud', noReplyToRead: 'Koottu has not replied yet.', speechGenerating: 'Preparing Malayalam audio…', speechFailed: 'Could not play this reply. Check your browser audio settings.' });
+  Object.assign(translations.en, { voiceStop: 'Stop recording', voiceRecording: 'Recording… tap the mic again when finished.', voiceTranscribing: 'Transcribing your voice…', voicePermission: 'Allow microphone access in your browser, then try again.', voiceUnsupported: 'This browser cannot record audio. Try Chrome or type your expense.', voiceReady: 'Voice converted to text. Review it, then send.', micUnavailable: 'Could not start voice input. Check microphone access and try again.', assistantUnreachable: 'Gemma unavailable', assistantSub: 'Your flatmate, always around', readAloud: 'Read latest reply aloud', speakReply: 'Read this reply aloud', noReplyToRead: 'Koottu has not replied yet.', speechGenerating: 'Preparing audio…', speechFailed: 'Could not play this reply. Check your browser audio settings.' });
   Object.assign(translations.en, { paymentDraftTitle: 'Payment draft', paymentDraftHint: 'Check the amount before recording this transfer.', confirmPayment: 'Confirm payment', paymentRecorded: 'Payment recorded. Remaining balance:', paymentOutdated: 'This balance changed while the draft was open. Check the current settlements and try again.', paymentTooLarge: 'That amount is more than the current outstanding balance. No payment was recorded.', assistantHint: 'Report a shared cost or a repayment. Koottu checks the ledger and asks you to confirm before saving.' });
   Object.assign(translations.ml, { voiceStop: 'റെക്കോർഡിംഗ് നിർത്തൂ', voiceRecording: 'റെക്കോർഡ് ചെയ്യുന്നു… കഴിഞ്ഞാൽ മൈക്ക് വീണ്ടും അമർത്തൂ.', voiceTranscribing: 'ശബ്ദം ടെക്സ്റ്റാക്കുന്നു…', voicePermission: 'ബ്രൗസറിൽ മൈക്ക് ഉപയോഗിക്കാൻ അനുമതി നൽകി വീണ്ടും ശ്രമിക്കൂ.', voiceUnsupported: 'ഈ ബ്രൗസറിൽ ശബ്ദം റെക്കോർഡ് ചെയ്യാനാകില്ല. Chrome ഉപയോഗിക്കൂ അല്ലെങ്കിൽ ടൈപ്പ് ചെയ്യൂ.', voiceReady: 'പറഞ്ഞത് ടെക്സ്റ്റാക്കി. പരിശോധിച്ച് അയക്കൂ.', micUnavailable: 'ശബ്ദ ഇൻപുട്ട് തുടങ്ങാനായില്ല. മൈക്ക് അനുമതി പരിശോധിച്ച് വീണ്ടും ശ്രമിക്കൂ.', assistantUnreachable: 'Gemma ലഭ്യമല്ല' });
   Object.assign(translations.en, { assistantChecking: 'Connecting to Gemma…' });
@@ -57,10 +57,10 @@
   const colors = ['avatar-lime', 'avatar-blue', 'avatar-coral', 'avatar-purple'];
   const icons = { rent: '🏠', groceries: '🛒', food: '🍛', travel: '🛺', utilities: '⚡', maintenance: '🛠', cleaning: '🧹', other: '✳' };
   const defaults = {
-    building: { name: 'Kakkanad Flatmates', location: 'PG · Kochi' },
-    currentHouseholdId: 'fitha',
+    building: { name: 'My shared home', location: 'A little space for your people' },
+    currentHouseholdId: 'self',
     households: [
-      { id: 'fitha', name: 'Fitha', unit: 'Room 01', members: ['Fitha'], color: colors[0] }
+      { id: 'self', name: 'You', unit: '', members: ['You'], color: colors[0], active: true }
     ],
     expenses: [],
     settlements: []
@@ -90,6 +90,14 @@
   let browserRecognition = null;
   let browserVoiceFailed = false;
   let voiceTranscribing = false;
+  let assistantBusy = false;
+  let chatGeneration = 0;
+  let assistantAbort = null;
+  let conversation = [];
+  let pendingDraft = null;
+  let chatHistoryNode = null;
+  let autoReadReplies = localStorage.getItem('koottu.autoread') === 'true';
+  let voiceCloudLimited = false;
 
   function loadState() {
     try {
@@ -98,7 +106,27 @@
     } catch { /* use the starter ledger */ }
     return structuredClone(defaults);
   }
-  function saveState() { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+  async function saveState() {
+    if (window.KoottuCloud?.active) {
+      try { await window.KoottuCloud.save(structuredClone(state)); return true; }
+      catch(error) { render(); showToast(error.message, true); return false; }
+    }
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); return true; }
+    catch { state = loadState(); normalizeState(); render(); showToast('This browser could not save the ledger. Check available storage and try again.',true); return false; }
+  }
+  async function appFetch(url, options = {}) {
+    const token = await window.KoottuCloud?.accessToken();
+    return fetch(url, { ...options, headers: { ...options.headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  }
+  function resetChat() {
+    chatGeneration += 1; assistantAbort?.abort(); assistantAbort = null; assistantBusy = false;
+    chatHistoryNode = null; conversation = []; pendingDraft = null; lastAssistantReply = '';
+    stopSpeechOutput(); browserRecognition?.abort();
+    if (voiceRecorder?.state === 'recording') { voiceRecorder.onstop = null; voiceRecorder.stop(); }
+    document.getElementById('chat-history')?.remove();
+    releaseVoiceStream();
+  }
+
   function createInviteCode() {
     const bytes = new Uint8Array(5);
     if (window.crypto?.getRandomValues) window.crypto.getRandomValues(bytes);
@@ -106,43 +134,23 @@
     return [...bytes].map(value => value.toString(16).padStart(2, '0')).join('').toUpperCase();
   }
   function normalizeState() {
-    let changed = false;
-    if (!Array.isArray(state.settlements)) { state.settlements = []; changed = true; }
-    if (!state.inviteCode) { state.inviteCode = createInviteCode(); changed = true; }
-    if (state.building?.name === 'Sreepadam Apartments') {
-      state.building.name = 'Kakkanad Flatmates';
-      state.building.location = 'PG · Kochi';
-      changed = true;
-    }
-    const legacyRoommates = { h1: ['Anu\'s Household', 'Anu', 'Room 01'], h2: ['Nila Residence', 'Nila', 'Room 02'], h3: ['Green Corner', 'Meera', 'Room 03'] };
-    state.households.forEach(home => {
-      const legacy = legacyRoommates[home.id];
-      if (legacy && home.name === legacy[0]) {
-        home.name = legacy[1]; home.unit = legacy[2]; home.members = [legacy[1]]; changed = true;
-      }
-    });
-    state.households.forEach(home => {
-      if (home.active === undefined) { home.active = true; changed = true; }
-      if (/^(anu|nila|meera)$/i.test(home.name) && home.active) {
-        home.active = false;
-        home.leftAt = new Date().toISOString().slice(0, 10);
-        changed = true;
-      }
-    });
-    let fitha = state.households.find(home => home.name.trim().toLocaleLowerCase() === 'fitha');
-    if (!fitha) {
-      fitha = { id: 'fitha', name: 'Fitha', unit: 'Room 01', members: ['Fitha'], color: colors[0], active: true };
-      state.households.push(fitha);
-      changed = true;
-    }
-    if (fitha.name !== 'Fitha') { fitha.name = 'Fitha'; changed = true; }
-    if (Array.isArray(fitha.members) && fitha.members.length === 1 && fitha.members[0].toLocaleLowerCase() === 'fitha' && fitha.members[0] !== 'Fitha') {
-      fitha.members[0] = 'Fitha'; changed = true;
-    }
-    if (state.currentHouseholdId !== fitha.id) { state.currentHouseholdId = fitha.id; changed = true; }
-    if (changed) saveState();
+    if (!Array.isArray(state.settlements)) state.settlements = [];
+    if (!state.inviteCode) state.inviteCode = createInviteCode();
+    state.households.forEach(home => { if (home.active === undefined) home.active = true; if (!Array.isArray(home.members)) home.members = [home.name]; });
+    if (!state.households.some(home => home.id === state.currentHouseholdId)) state.currentHouseholdId = state.households.find(home => home.active)?.id || state.households[0]?.id;
   }
-  function t(key) { return translations[language]?.[key] || translations.en[key] || key; }
+  function t(key) {
+    const words = {
+      inviteIntro: 'Add people to your ledger, or invite them to your shared group.',
+      inviteLimit: 'Shared groups let signed-in roommates access the same ledger.',
+      monthToDate: 'All time', expensesCount: 'recorded shared expenses',
+      aboutTitle: 'A little less awkward. A lot more clear.',
+      aboutBody: 'Track shared expenses and repayments with your roommates. Gemma can prepare drafts from text or receipts. Review the people and amounts before saving. Speech features depend on browser support and available API quota. Shared accounts synchronize through Supabase when configured.',
+      aiUnavailable: 'Koottu’s AI is unavailable right now. You can still review and save expenses manually. Tap the connection button above to retry.',
+      expenseSaved: window.KoottuCloud?.active ? 'Expense saved to your shared group.' : 'Expense saved on this device.'
+    };
+    return language === 'en' && words[key] ? words[key] : translations[language]?.[key] || translations.en[key] || key;
+  }
   function money(value) { return new Intl.NumberFormat(language === 'ml' ? 'ml-IN' : 'en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Math.round(value || 0)); }
   function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch])); }
   function household(id) { return state.households.find(item => item.id === id) || { id, name: 'Unknown roommate', unit: '', members: [], color: colors[0] }; }
@@ -194,7 +202,7 @@
     document.getElementById('building-name').textContent = state.building?.name || defaults.building.name;
     document.getElementById('building-location').textContent = state.building?.location || defaults.building.location;
     document.getElementById('expense-count').textContent = state.expenses.length;
-    document.getElementById('crumb-view').textContent = t(view === 'rules' ? 'splitRules' : view);
+    document.getElementById('crumb-view').textContent = t(view === 'rules' ? 'splitRules' : view === 'assistant' ? 'assistant' : view);
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const key = el.getAttribute('data-i18n');
       if (translations[language][key]) el.textContent = t(key);
@@ -213,7 +221,7 @@
     const assistantInput = document.getElementById('assistant-input');
     if (assistantInput) assistantInput.placeholder = t('composerPlaceholder');
     document.querySelectorAll('.nav-item').forEach(button => button.classList.toggle('active', button.dataset.view === view));
-    document.querySelector('.local-badge [data-i18n="demoMode"]').textContent = t('localDemo');
+    document.querySelector('.local-badge [data-i18n="demoMode"]').textContent = window.KoottuCloud?.active ? 'Shared group' : 'Private on this device';
   }
   function pageHeading(title, subtitle, button = '') {
     return `<div class="page-heading"><div><h1>${title}</h1><p>${subtitle}</p></div>${button}</div>`;
@@ -233,8 +241,8 @@
     return `<section class="card"><div class="card-header"><div><h2>${t('suggestedSettlements')}</h2><p>${t('settleHint')}</p></div><span class="stat-icon">↗</span></div><div class="settlement-list">${settlements.length ? settlements.map((item, index) => {
       const from = household(item.from), to = household(item.to);
       const existing = state.settlements.find(record => record.month === monthLabel && record.from === item.from && record.to === item.to && record.amount === item.amount && !record.paid);
-      return `<div class="settlement-row"><div class="settlement-avatars">${avatar(from)}${avatar(to)}</div><div class="settlement-copy"><strong>${escapeHtml(from.name)} → ${escapeHtml(to.name)}</strong><small>${escapeHtml(from.unit)} to ${escapeHtml(to.unit)}</small></div><div class="settlement-amount"><strong>${money(item.amount)}</strong><button type="button" data-settle="${existing?.id || `suggest-${index}`}" data-from="${item.from}" data-to="${item.to}" data-amount="${item.amount}">${t('markPaid')}</button></div></div>`;
-    }).join('') : `<div class="settlement-empty">${t('noSettlements')}</div>`}</div><div class="settlement-footer"><span>${t('calculateTip')}</span><strong>${settlements.length} ${t(settlements.length === 1 ? 'expense' : 'expenses')}</strong></div></section>`;
+      return `<div class="settlement-row"><div class="settlement-avatars">${avatar(from)}${avatar(to)}</div><div class="settlement-copy"><strong>${escapeHtml(from.name)} → ${escapeHtml(to.name)}</strong><small>${escapeHtml(from.unit || from.name)} → ${escapeHtml(to.unit || to.name)}</small></div><div class="settlement-amount"><strong>${money(item.amount)}</strong><button type="button" data-settle="${existing?.id || `suggest-${index}`}" data-from="${item.from}" data-to="${item.to}" data-amount="${item.amount}">${t('markPaid')}</button></div></div>`;
+    }).join('') : `<div class="settlement-empty">${t('noSettlements')}</div>`}</div><div class="settlement-footer"><span>${t('calculateTip')}</span><strong>${settlements.length} ${settlements.length === 1 ? 'transfer' : 'transfers'}</strong></div></section>`;
   }
   function balancesCard(compact = false) {
     const balances = getBalances();
@@ -250,16 +258,8 @@
   }
   function assistantCard() {
     const onlineLabel = gemmaConnected ? t('assistantOnline') : gemmaStatusChecked ? t('assistantOffline') : t('assistantChecking');
-    const tripHomes = activeHouseholds();
-    const groceryPrompt = language === 'en'
-      ? `${currentHousehold().name} paid ₹900 for groceries, shared by all roommates`
-      : `${currentHousehold().name} ₹900 പലചരക്ക് കൊടുത്തു, എല്ലാവരും പങ്കിടുന്നു`;
-    const tripLabel = language === 'en' ? 'Add ₹1,800 trip petrol for everyone' : 'എല്ലാവർക്കുമായി ₹1,800 ട്രിപ്പ് പെട്രോൾ';
-    const tripPrompt = language === 'en'
-      ? `${currentHousehold().name} paid ₹1,800 for trip petrol, shared by all roommates`
-      : `${currentHousehold().name} ട്രിപ്പ് പെട്രോളിന് ₹1,800 കൊടുത്തു, എല്ലാവരും പങ്കിടുന്നു`;
     const suggestion = (prompt, label) => `<button class="suggestion-chip" type="button" data-prompt="${escapeHtml(prompt)}">${escapeHtml(label)}</button>`;
-    return `<section class="card assistant-card" id="assistant-card"><div class="assistant-header"><div class="assistant-title"><span class="assistant-orb">✳</span><span><strong>${t('assistant')}</strong><small>${t('assistantSub')}</small></span></div><div class="assistant-tools"><button class="speech-toggle" id="read-aloud-button" type="button" title="${t('readAloud')}" aria-label="${t('readAloud')}">🔊 <span>${t('readAloud')}</span></button><span class="model-chip" id="model-chip">${onlineLabel}</span></div></div><div class="assistant-body"><div class="chat-history" id="chat-history"><div class="chat-message"><span class="chat-avatar">✳</span><div class="chat-bubble">${escapeHtml(chatWelcome())}</div></div></div><aside class="chat-side"><span class="chat-side-label">${t('tryThese')}</span>${suggestion(t('chipOwes'), t('chipOwes'))}${suggestion(t('chipTease'), t('chipTease'))}${suggestion(groceryPrompt, t('chipAdd'))}${tripHomes.length > 1 ? suggestion(tripPrompt, tripLabel) : ''}${suggestion(t('chipMalayalam'), t('chipMalayalam'))}</aside></div><div id="receipt-preview-wrap"></div><form class="assistant-compose" id="assistant-form"><div class="composer-wrap"><textarea id="assistant-input" rows="1" placeholder="${t('composerPlaceholder')}"></textarea><div class="composer-actions"><button class="composer-icon" id="receipt-button" type="button" title="${t('attachReceipt')}" aria-label="${t('attachReceipt')}">▧</button><select id="voice-language" class="voice-language" aria-label="Spoken language" title="Choose the language you will speak"><option value="en-IN">English</option><option value="ml-IN">Malayalam</option></select><button class="composer-icon" id="voice-button" type="button" title="${t('voiceInput')}" aria-label="${t('voiceInput')}">🎙</button></div></div><button class="send-button" type="submit" aria-label="${t('send')}">➤</button></form><div class="assistant-hint">${t('assistantHint')}</div></section>`;
+    return `<section class="card assistant-card" id="assistant-card"><div class="assistant-header"><div class="assistant-title"><span class="assistant-orb">✳</span><span><strong>${t('assistant')}</strong><small>${t('assistantSub')}</small></span></div><div class="assistant-tools"><label class="auto-voice"><input id="auto-read-replies" type="checkbox" ${autoReadReplies?'checked':''}> Read replies</label><button class="speech-toggle" id="read-aloud-button" type="button" title="${t('readAloud')}" aria-label="${t('readAloud')}">🔊 <span>${t('readAloud')}</span></button><button type="button" class="model-chip" id="model-chip" title="Check the Gemma connection">${onlineLabel}</button></div></div><div class="assistant-body"><div class="chat-history" id="chat-history"><div class="chat-message"><span class="chat-avatar">✳</span><div class="chat-bubble">${escapeHtml(chatWelcome())}</div></div></div><aside class="chat-side"><span class="chat-side-label">${t('tryThese')}</span>${suggestion('What do I owe right now?', 'What do I owe right now?')}${suggestion('Where did our money go this month?', 'Where did our money go?')}${suggestion('Help me split a bill. What details do you need?', 'Help me split a bill')}${suggestion('Give us a gentle spending roast', 'Have we overdone the takeout?')}${suggestion('Explain my balance simply', 'Explain my balance')}</aside></div><div id="receipt-preview-wrap"></div><form class="assistant-compose" id="assistant-form"><div class="composer-wrap"><textarea id="assistant-input" rows="1" placeholder="${t('composerPlaceholder')}"></textarea><div class="composer-actions"><button class="composer-icon" id="receipt-button" type="button" title="${t('attachReceipt')}" aria-label="${t('attachReceipt')}">▧</button><button class="composer-icon" id="voice-button" type="button" title="${t('voiceInput')}" aria-label="${t('voiceInput')}">🎙</button></div></div><button class="send-button" type="submit" aria-label="${t('send')}">➤</button></form></section>`;
   }
   function categoryBreakdown() {
     const categories = ['rent', 'groceries', 'food', 'travel'];
@@ -268,15 +268,17 @@
       return `<button class="category-tile" type="button" data-filter="${category}"><span class="category-tile-icon">${icons[category]}</span><span class="category-tile-copy"><small>${t(category)}</small><strong>${money(total)}</strong></span><span class="category-tile-arrow">↗</span></button>`;
     }).join('')}</div></section>`;
   }
+  function dashboardReminders() {
+    const transfers=makeSettlements();
+    const due=transfers.filter(item=>item.from===state.currentHouseholdId);
+    const expected=transfers.filter(item=>item.to===state.currentHouseholdId);
+    return `<section class="card dashboard-reminders"><div><span class="reminder-mark">◷</span><h2>Reminders</h2></div><p>${due.length?`You have ${due.length} payment${due.length===1?'':'s'} to settle.`:expected.length?`${expected.length} payment${expected.length===1?' is':'s are'} due to you.`:'You’re all caught up. No unsettled balance.'}</p><div class="reminder-actions"><button type="button" class="text-button" data-view="households">View balances →</button><button type="button" class="text-button" data-notifications>Reminder settings</button></div></section>`;
+  }
   function overview() {
     const balance = getBalances()[state.currentHouseholdId] || 0;
-    const amount = Math.abs(balance);
-    const paidOwedLabel = balance >= 0 ? t('youAreOwed') : t('youOwe');
-    return `${pageHeading(t('welcome'), t('welcomeText'), `<div class="heading-actions"><button class="button button-quiet" data-action="invite"><span>↗</span>${t('inviteRoommates')}</button><button class="button button-primary" data-action="add-expense"><span>＋</span>${t('addExpense')}</button></div>`)}
-      <section class="overview-banner"><div class="banner-copy"><span class="eyebrow">${t('thisMonth')}</span><h2>${escapeHtml(state.building?.name || defaults.building.name)}</h2><p>${escapeHtml(state.building?.location || defaults.building.location)} · ${activeHouseholds().length} ${t('homes')}</p></div><div class="banner-art" aria-hidden="true"><span class="banner-leaf">⌂</span><span class="banner-leaf">✳</span></div></section>
-      <div class="stats-grid"><article class="stat-card"><div class="stat-top"><span>${t('totalRecorded')}</span><span class="stat-icon">↗</span></div><div class="stat-value">${money(totalExpenses())}</div><div class="stat-caption">${state.expenses.length} ${t(state.expenses.length === 1 ? 'expense' : 'expensesPlural')} ${t('expensesCount')}</div></article><article class="stat-card"><div class="stat-top"><span>${paidOwedLabel}</span><span class="stat-icon ${balance < 0 ? 'coral' : ''}">${balance < 0 ? '↙' : '↗'}</span></div><div class="stat-value">${money(amount)}</div><div class="stat-caption">${t('basedOnLedger')}</div></article><article class="stat-card"><div class="stat-top"><span>${t('monthEnd')}</span><span class="stat-icon blue">⌂</span></div><div class="stat-value">${activeHouseholds().length} ${t('homes')}</div><div class="stat-caption">${state.settlements.filter(item => item.paid).length} ${t('paid').toLowerCase()} · ${t('monthToDate')}</div></article></div>
-      ${categoryBreakdown()}
-      <div class="content-grid"><section class="card"><div class="card-header"><div><h2>${t('recentActivity')}</h2><p>${t('monthToDate')}</p></div><button class="text-button" data-view="expenses">${t('seeAll')} →</button></div><div class="activity-list">${recentExpenses()}</div></section><div class="right-column">${settlementsCard()}${balancesCard(true)}</div></div>${assistantCard()}`;
+    return `${pageHeading('Overview', `${escapeHtml(state.building.name)} · Your shared expenses, in one place.`, `<div class="heading-actions"><button class="button button-quiet" data-action="invite">Invite roommates</button><button class="button button-primary" data-action="add-expense"><span>＋</span>Add expense</button></div>`)}
+      <div class="stats-grid"><article class="stat-card"><div class="stat-top"><span>Total shared spending</span></div><div class="stat-value">${money(totalExpenses())}</div><div class="stat-caption">${state.expenses.length} ${state.expenses.length===1?'expense':'expenses'} recorded</div></article><article class="stat-card"><div class="stat-top"><span>${balance<0?'You owe':'You’re owed'}</span></div><div class="stat-value ${balance<0?'negative':''}">${money(Math.abs(balance))}</div><div class="stat-caption">${balance===0?'All settled up':'Across this group'}</div></article><article class="stat-card"><div class="stat-top"><span>Your group</span></div><div class="stat-value">${activeHouseholds().length} <small>${activeHouseholds().length===1?'roommate':'roommates'}</small></div><button type="button" class="text-button" data-view="households">Manage roommates →</button></article></div>
+      <div class="content-grid"><div class="overview-main"><section class="card"><div class="card-header"><div><h2>Recent expenses</h2><p>All recorded expenses</p></div><button class="text-button" data-view="expenses">See all →</button></div><div class="activity-list">${recentExpenses()}</div></section>${dashboardReminders()}</div><div class="right-column">${settlementsCard()}<div class="assistant-shortcut"><span>✳</span><h2>Need a hand with the math?</h2><p>Tell Koottu who paid, or share a receipt. Check the draft before saving.</p><button class="button button-outline-green" type="button" data-view="assistant">Ask Koottu →</button></div></div></div>`;
   }
   function expensesView() {
     const filtered = [...state.expenses].sort((a, b) => b.date.localeCompare(a.date)).filter(expense => (expenseFilter === 'all' || expense.category === expenseFilter) && `${expense.title} ${contributorLabel(expense, true)}`.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -307,11 +309,19 @@
     return `${pageHeading(t('rulesTitle'), t('rulesIntro'))}<div class="view-layout"><div class="rules-list"><article class="card rule-card"><span class="rule-icon">÷</span><div class="rule-copy"><strong>${t('equalTitle')}</strong><p>${t('equalDesc')}</p></div><span class="rule-tag">${t('splitEvenly')}</span></article><article class="card rule-card"><span class="rule-icon">₹</span><div class="rule-copy"><strong>${t('customTitle')}</strong><p>${t('customDesc')}</p></div><span class="rule-tag">${t('customAmounts')}</span></article><article class="card rule-card"><span class="rule-icon">✓</span><div class="rule-copy"><strong>${t('transparencyTitle')}</strong><p>${t('transparencyDesc')}</p></div><span class="rule-tag">${t('buildingExpense')}</span></article></div><aside><div class="note-card"><h3>${t('goodPractice')}</h3><p>${t('practiceBody')}</p><div class="note-bullets"><span>${t('practiceOne')}</span><span>${t('practiceTwo')}</span><span>${t('practiceThree')}</span></div></div><div class="note-card" style="margin-top:13px"><h3>${t('ledgerNote')}</h3><p>${t('ledgerNoteBody')}</p></div></aside></div>`;
   }
   function render() {
+    const oldHistory = document.getElementById('chat-history');
+    if (oldHistory) chatHistoryNode = oldHistory;
+    const oldInput = document.getElementById('assistant-input')?.value || '';
     setHeader();
     const content = document.getElementById('page-content');
-    content.innerHTML = view === 'expenses' ? expensesView() : view === 'households' ? householdsView() : view === 'rules' ? rulesView() : overview();
+    content.innerHTML = view === 'expenses' ? expensesView() : view === 'households' ? householdsView() : view === 'rules' ? rulesView() : view === 'assistant' ? `<div class="assistant-focus">${pageHeading('Ask Koottu', 'A little help with shared expenses. Ask a question, describe a payment, or share a receipt.')}${assistantCard()}</div>` : overview();
+    const newHistory = document.getElementById('chat-history');
+    if (newHistory && chatHistoryNode) newHistory.replaceWith(chatHistoryNode);
+    const newInput = document.getElementById('assistant-input');
+    if (newInput) newInput.value = oldInput;
     bindPageActions();
     updateModelChip();
+    window.KoottuCloud?.updateBadges();
   }
   function showToast(message, error = false) {
     const toast = document.getElementById('toast');
@@ -324,15 +334,24 @@
     url.hash = '';
     return url.toString();
   }
-  function openInviteModal() {
+  async function openInviteModal() {
+    if (!window.KoottuCloud.canManage) return showToast('Ask the group creator to invite or manage roommates.', true);
     const backdrop = document.getElementById('invite-modal');
     const isInvitePreview = new URLSearchParams(window.location.search).has('invite');
-    document.getElementById('invite-link').value = inviteUrl();
+    const link = document.getElementById('invite-link');
+    link.value = window.KoottuCloud.active ? 'Creating a secure invitation…' : 'Sign in and create a shared group to invite people.';
+    document.getElementById('copy-invite').disabled = !window.KoottuCloud.active;
+    document.getElementById('share-invite').disabled = !window.KoottuCloud.active;
     document.getElementById('invite-dialog-title').textContent = t('inviteTitle');
     document.querySelector('.invite-dialog .dialog-header p').textContent = isInvitePreview ? t('joinInvite') : t('inviteIntro');
     backdrop.classList.add('open');
     backdrop.setAttribute('aria-hidden', 'false');
     document.getElementById('roommate-name').focus();
+    document.querySelector('[data-i18n="inviteLimit"]').textContent = window.KoottuCloud.active ? 'This invitation expires in 7 days. Generating another link replaces the previous invitation.' : 'Add names to your private ledger below. Sign in for real invitations and shared updates.';
+    if (window.KoottuCloud.active) {
+      try { link.value = await window.KoottuCloud.invite(); }
+      catch(error) { link.value = ''; document.getElementById('copy-invite').disabled=true; document.getElementById('share-invite').disabled=true; showToast(error.message,true); }
+    }
   }
   function closeInviteModal() {
     const backdrop = document.getElementById('invite-modal');
@@ -366,7 +385,9 @@
     try { await navigator.share({ title: 'Join my Koottu flat', text: t('inviteIntro'), url: link }); }
     catch (error) { if (error.name !== 'AbortError') copyInviteLink(); }
   }
-  function addRoommate(event) {
+  async function addRoommate(event) {
+    if (window.KoottuCloud.saving) return showToast('Please wait while your last change is saved.');
+    if (!window.KoottuCloud.canManage) return showToast('Only the group creator can manage roommates.', true);
     event.preventDefault();
     const nameInput = document.getElementById('roommate-name');
     const roomInput = document.getElementById('roommate-room');
@@ -379,25 +400,34 @@
     if (existing && existing.active !== false) return showToast(t('roommateExists').replace('{name}', name).replace('{room}', room), true);
     if (existing) {
       existing.active = true; existing.activeSince = new Date().toISOString().slice(0, 10); delete existing.leftAt;
-      saveState(); closeInviteModal(); render(); showToast(t('roommateRestored')); return;
+      if (!await saveState()) return; closeInviteModal(); render(); showToast(t('roommateRestored')); return;
     }
     const joinedAt = new Date().toISOString().slice(0, 10);
     state.households.push({ id: `r${Date.now().toString(36)}`, name, unit: room, members: [name], color: colors[state.households.length % colors.length], active: true, joinedAt, activeSince: joinedAt });
-    saveState(); closeInviteModal(); render(); showToast(t('roommateAdded'));
+    if (!await saveState()) return; closeInviteModal(); render(); showToast(t('roommateAdded'));
   }
-  function markRoommateMovedOut(id) {
+  async function markRoommateMovedOut(id) {
+    if (window.KoottuCloud.saving) return showToast('Please wait while your last change is saved.');
+    if (!window.KoottuCloud.canManage) return showToast('Only the group creator can manage roommates.', true);
     const home = household(id);
     if (!home || home.active === false) return;
     if (id === state.currentHouseholdId) return showToast(t('currentUserCannotLeave'), true);
     if (!window.confirm(t('confirmMovedOut').replace('{name}', home.name))) return;
+    if (window.KoottuCloud.active) {
+      try { await window.KoottuCloud.removeMember(id); render(); showToast('Roommate moved out. Their history is preserved and group access is removed.'); }
+      catch(error) { showToast(error.message,true); }
+      return;
+    }
     home.active = false; home.leftAt = new Date().toISOString().slice(0, 10);
-    saveState(); render(); showToast(t('roommateMovedOut'));
+    if (!await saveState()) return; render(); showToast(t('roommateMovedOut'));
   }
-  function restoreRoommate(id) {
+  async function restoreRoommate(id) {
+    if (window.KoottuCloud.saving) return showToast('Please wait while your last change is saved.');
+    if (!window.KoottuCloud.canManage) return showToast('Only the group creator can manage roommates.', true);
     const home = household(id);
     if (!home || home.active !== false) return;
     home.active = true; delete home.leftAt;
-    saveState(); render(); showToast(t('roommateRestored'));
+    if (!await saveState()) return; render(); showToast(t('roommateRestored'));
   }
   function openModal(draft = {}) {
     const form = document.getElementById('expense-form');
@@ -482,6 +512,7 @@
     const preview = document.getElementById('split-preview');
     if (!amount || !ids.length) { preview.innerHTML = `<span class="preview-icon">✳</span><span>${t('previewHint')}</span>`; return; }
     const shares = method === 'equal' ? calculatedShares(amount, ids) : Object.fromEntries([...document.querySelectorAll('[data-custom-share]')].map(input => [input.dataset.customShare, Number(input.value) || 0]));
+    if (Object.values(shares).some(value => !Number.isFinite(value) || value < 0)) return showToast('Shares must be zero or positive amounts.', true);
     const sum = Object.values(shares).reduce((total, value) => total + value, 0);
     const display = Object.entries(shares).map(([id, value]) => `<strong>${escapeHtml(household(id).name)}: ${money(value)}</strong>`).join(' · ');
     const valid = method !== 'custom' || sum === Math.round(amount);
@@ -492,8 +523,9 @@
     const totalNote = method === 'custom' ? `<small class="split-total">${sum === Math.round(amount) ? '✓' : `${t('amount')}: ${money(sum)} / ${money(amount)}`}</small>` : '';
     preview.innerHTML = `<span class="preview-icon">${valid ? '✳' : '!'}</span><span class="split-preview-copy"><span>${summary} ${display}</span>${remainderNote}${totalNote}</span>`;
   }
-  function saveExpense(event) {
+  async function saveExpense(event) {
     event.preventDefault();
+    if (window.KoottuCloud.saving) return;
     const title = document.getElementById('expense-title').value.trim();
     const amount = Math.round(Number(document.getElementById('expense-amount').value));
     const participantIds = selectedHouseholdIds();
@@ -509,14 +541,18 @@
     const sum = Object.values(shares).reduce((total, value) => total + value, 0);
     if (sum !== amount) return showToast(t('amountMismatch'), true);
     state.expenses.unshift({ id: `e${Date.now()}`, title, amount, category: document.getElementById('expense-category').value, payerId: selectedPayers[0].value, contributions, shares, date: new Date().toISOString().slice(0, 10), splitMethod });
-    saveState(); closeModal(); render(); showToast(t('expenseSaved'));
+    if (!await saveState()) return; pendingDraft = null; document.querySelectorAll('.draft-open,.draft-confirm').forEach(b => { b.disabled = true; b.textContent = 'Saved to ledger'; }); closeModal(); render(); showToast(t('expenseSaved'));
   }
-  function markSettlement(button) {
+  async function markSettlement(button) {
+    if (window.KoottuCloud.saving) return showToast('Please wait while your last change is saved.');
+    if (!window.confirm('Record this repayment only if the money has actually been paid. Continue?')) return;
+    const verified = makeSettlements().find(item => item.from === button.dataset.from && item.to === button.dataset.to && item.amount === Number(button.dataset.amount));
+    if (!verified) return showToast('This balance has changed. Refresh the ledger before recording a payment.',true);
     const id = button.dataset.settle;
     const current = state.settlements.find(item => item.id === id);
     if (current) current.paid = true;
     else state.settlements.push({ id: `s${Date.now()}`, month: monthLabel, from: button.dataset.from, to: button.dataset.to, amount: Number(button.dataset.amount), paid: true, date: new Date().toISOString().slice(0, 10) });
-    saveState(); render(); showToast(t('markedPaid'));
+    if (!await saveState()) return; render(); showToast(t('markedPaid'));
   }
   function bindPageActions() {
     document.querySelectorAll('[data-action="add-expense"]').forEach(button => button.addEventListener('click', () => openModal()));
@@ -529,30 +565,36 @@
     const search = document.getElementById('expense-search');
     if (search) search.addEventListener('input', event => { searchTerm = event.target.value; const caret = event.target.selectionStart; render(); const next = document.getElementById('expense-search'); next.focus(); next.setSelectionRange(caret, caret); });
     document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', () => { const input = document.getElementById('assistant-input'); if (!input) return; input.value = button.dataset.prompt; submitAssistant(); }));
+    document.querySelectorAll('[data-notifications]').forEach(button=>button.addEventListener('click',()=>window.KoottuCloud.notifications()));
     const assistantForm = document.getElementById('assistant-form');
     if (assistantForm) assistantForm.addEventListener('submit', event => { event.preventDefault(); submitAssistant(); });
     const receiptButton = document.getElementById('receipt-button');
     if (receiptButton) receiptButton.addEventListener('click', () => document.getElementById('receipt-input').click());
+    const autoRead = document.getElementById('auto-read-replies');
+    if (autoRead) autoRead.addEventListener('change', () => { autoReadReplies = autoRead.checked; localStorage.setItem('koottu.autoread', String(autoReadReplies)); if (!autoReadReplies) stopSpeechOutput(); });
     const voiceButton = document.getElementById('voice-button');
     if (voiceButton) voiceButton.addEventListener('click', startVoiceInput);
+    document.getElementById('model-chip')?.addEventListener('click',async()=>{await checkGemma();showToast(gemmaConnected?'Gemma is connected.':geminiConfigured?'Gemma is temporarily unavailable. Please try again shortly.':'AI is not configured on this instance. Manual expense entry is available.',!gemmaConnected);});
     const readAloudButton = document.getElementById('read-aloud-button');
     if (readAloudButton) readAloudButton.addEventListener('click', () => {
       if (!lastAssistantReply) return showToast(t('noReplyToRead'));
       speak(lastAssistantReply);
     });
   }
-  function appendMessage(text, role = 'assistant', error = false, extra = '') {
+  function appendMessage(text, role = 'assistant', error = false, extra = '', spokenText = null) {
     const history = document.getElementById('chat-history');
     if (!history) return;
     const node = document.createElement('div'); node.className = `chat-message ${role === 'user' ? 'user' : ''}`;
     const safe = escapeHtml(text).replace(/\n/g, '<br>');
     node.innerHTML = `${role === 'user' ? '' : '<span class="chat-avatar">✳</span>'}<div class="chat-bubble ${error ? 'error' : ''}">${safe}${extra}</div>`;
     history.appendChild(node); history.scrollTop = history.scrollHeight;
-    if (role !== 'user' && !error && !/^(just a sec|one moment|ഒരു നിമിഷം)/i.test(text)) lastAssistantReply = text;
+    const realMessage = !error && !/^(just a sec|one moment|ഒരു നിമിഷം|Connecting)/i.test(text);
+    if (realMessage) { conversation.push({role:role === 'user'?'user':'assistant',text:String(text).slice(0,1800)}); conversation = conversation.slice(-12); }
+    if (role !== 'user' && realMessage) { lastAssistantReply = spokenText || text; if (autoReadReplies) speak(spokenText || text); }
     if (role !== 'user' && !error) {
       const speakButton = document.createElement('button');
       speakButton.className = 'message-speak'; speakButton.type = 'button'; speakButton.title = t('speakReply'); speakButton.setAttribute('aria-label', t('speakReply')); speakButton.textContent = '🔊';
-      speakButton.addEventListener('click', () => speak(text));
+      speakButton.addEventListener('click', () => speak(spokenText || text));
       node.querySelector('.chat-bubble')?.appendChild(speakButton);
     }
     return node;
@@ -628,6 +670,20 @@
     const lower = text.toLowerCase();
     const balances = getBalances();
     const settlements = makeSettlements(balances);
+    if (/where did|money go|spending summary/i.test(lower)) {
+      const month = new Date().toISOString().slice(0,7);
+      const items = state.expenses.filter(e=>String(e.date).startsWith(month));
+      if (!items.length) return 'No expenses are recorded this month yet. Tell me about a bill, and we can start there.';
+      const categories = {};
+      items.forEach(e=>{categories[e.category]=(categories[e.category]||0)+e.amount;});
+      return `Here’s this month’s spending: ${money(items.reduce((sum,e)=>sum+e.amount,0))} across ${items.length} expenses.\n${Object.entries(categories).sort((a,b)=>b[1]-a[1]).map(([category,amount])=>`${t(category)}: ${money(amount)}`).join('\n')}`;
+    }
+    if (/what do i owe/i.test(lower)) {
+      const net = balances[state.currentHouseholdId] || 0;
+      const transfers = settlements.filter(s=>s.from===state.currentHouseholdId || s.to===state.currentHouseholdId);
+      return `${net < 0 ? `You owe ${money(-net)} overall.` : net > 0 ? `You should receive ${money(net)} overall.` : 'Your balance is settled.'}${transfers.length?'\n'+transfers.map(s=>`${household(s.from).name} → ${household(s.to).name}: ${money(s.amount)}`).join('\n'):''}`;
+    }
+    if (/help me split|details do you need/i.test(lower)) return 'Send a receipt or tell me the total, who paid (and how much each person paid), and who should share it. I’ll prepare a review card so you can check every amount before saving.';
     if (/roast|spending|കളിയാക്കി/i.test(lower)) return spendingRoastAnswer(chatLanguage);
     if (/who owes|owe whom|who should|settle|ആരാണ്|ആർക്കു|കണക്ക്|balance|ബാലൻസ്/.test(lower)) {
       if (!settlements.length) return chatLanguage === 'ml' ? 'എല്ലാവരുടെയും കണക്ക് ഇപ്പോൾ ക്ലിയറാണ്. പിരിവിന് ആരെയും പിന്നാലെ നടക്കേണ്ട!' : t('noSettlements');
@@ -670,18 +726,34 @@
     return { title: translations[chatLanguage]?.[category] || t(category) || t('buildingExpense'), amount, category, payerId: payer?.id || null, contributions, participantIds, splitMethod: 'equal', shares: {}, clarifyingQuestion: clarification.join(' ') || null };
   }
   function showExpenseDraft(draft, local = false, clarifyingQuestion = null, chatLanguage = 'en') {
-    const words = translations[chatLanguage] || translations.en;
-    const draftContributions = draft.contributions && Object.keys(draft.contributions).length ? draft.contributions : draft.payerId ? { [draft.payerId]: draft.amount } : {};
-    const contributors = Object.entries(draftContributions);
-    const payerText = contributors.length ? contributors.map(([id, amount]) => `${household(id).name} ${money(amount)}`).join(' + ') : words.payerMissing;
-    const participants = (draft.participantIds || []).filter(id => activeHouseholds().some(home => home.id === id));
-    const shareMap = draft.splitMethod === 'custom' && draft.shares && Object.keys(draft.shares).length
-      ? draft.shares : calculatedShares(draft.amount, participants);
-    const shareText = Object.entries(shareMap).map(([id, amount]) => `${household(id).name} ${money(amount)}`).join(' · ') || words.participantsMissing;
-    const question = clarifyingQuestion ? `\n${clarifyingQuestion}` : '';
-    const label = words[local ? 'localDraft' : 'draftTitle'];
-    const node = appendMessage(`${label}: ${draft.title} · ${money(draft.amount)}\n${words.draftPayers}: ${payerText}\n${words.draftShares}: ${shareText}${question}\n${words.draftNote}`, 'assistant', false, `<button class="button button-outline-green button-small draft-open" type="button">${words.useDraft}</button>`);
-    node?.querySelector('.draft-open')?.addEventListener('click', () => openModal(draft));
+    pendingDraft = structuredClone(draft);
+    document.querySelectorAll('.draft-open,.draft-confirm').forEach(button => { button.disabled = true; button.textContent = 'Replaced by newer draft'; });
+    const participants = (draft.participantIds || []).filter(id => activeHouseholds().some(h=>h.id===id));
+    const contributions = draft.contributions && Object.keys(draft.contributions).length ? draft.contributions : draft.payerId ? { [draft.payerId]: draft.amount } : {};
+    const shares = draft.splitMethod === 'custom' && draft.shares && Object.keys(draft.shares).length ? draft.shares : calculatedShares(draft.amount,participants);
+    const paidTotal = Object.values(contributions).reduce((sum,n)=>sum+Number(n),0);
+    const shareTotal = Object.values(shares).reduce((sum,n)=>sum+Number(n),0);
+    const valid = participants.length > 0 && Object.keys(contributions).length > 0 && paidTotal === draft.amount && shareTotal === draft.amount && Object.entries(contributions).every(([id,n])=>state.households.some(h=>h.id===id)&&Number(n)>0) && Object.entries(shares).every(([id,n])=>participants.includes(id)&&Number(n)>=0);
+    const involved = [...new Set([...Object.keys(contributions),...Object.keys(shares)])];
+    const details = `<section class="expense-review-card" aria-label="Expense draft for review"><div class="review-title"><div><span class="eyebrow">REVIEW BEFORE SAVING</span><h3>${escapeHtml(draft.title)}</h3></div><strong>${money(draft.amount)}</strong></div><div class="review-meta"><span>${escapeHtml(t(draft.category||'other'))}</span><span>${draft.splitMethod==='custom'?'Custom shares':'Equal split'} · ${participants.length} people</span></div><div class="review-table-wrap"><table class="review-table"><thead><tr><th>Roommate</th><th>Paid</th><th>Share</th></tr></thead><tbody>${involved.map(id=>`<tr><th>${escapeHtml(household(id).name)}</th><td>${money(contributions[id]||0)}</td><td>${money(shares[id]||0)}</td></tr>`).join('')}<tr class="review-total"><th>Total</th><td>${money(paidTotal)}</td><td>${money(shareTotal)}</td></tr></tbody></table></div>${clarifyingQuestion?`<p class="review-question">${escapeHtml(clarifyingQuestion)}</p>`:''}<p class="review-status">${valid?'✓ Amounts match. Check the people and split below.':'A few details need checking. Choose Edit details to fill them in.'}</p><div class="review-actions"><button class="button button-primary button-small draft-confirm" type="button" ${valid?'':'disabled'}>Confirm & save</button><button class="button button-quiet button-small draft-open" type="button">Edit details</button></div><small class="review-disclaimer">${local?'Prepared from your text · ':''}Not saved yet</small></section>`;
+    const node = appendMessage(chatLanguage === 'ml' ? 'സേവ് ചെയ്യുന്നതിന് മുമ്പ് തുകയും വിഹിതങ്ങളും പരിശോധിക്കൂ.' : 'Here’s the draft. Does everything look right?', 'assistant', false, details, `Draft ${draft.title}, total ${money(draft.amount)}. Paid by ${Object.entries(contributions).map(([id,n])=>`${household(id).name}, ${money(n)}`).join('; ')||'not yet specified'}. Shares: ${Object.entries(shares).map(([id,n])=>`${household(id).name}, ${money(n)}`).join('; ')||'not yet specified'}. ${clarifyingQuestion||'Check these amounts before confirming.'}`);
+    node?.querySelector('.draft-open')?.addEventListener('click',()=>openModal(draft));
+    let confirming = false;
+    node?.querySelector('.draft-confirm')?.addEventListener('click',async()=>{
+      if (confirming || !valid || window.KoottuCloud.saving || !pendingDraft) return;
+      if (participants.some(id=>!activeHouseholds().some(h=>h.id===id))) return showToast('The roommate list has changed. Edit this draft before saving.',true);
+      confirming = true;
+      const button = node.querySelector('.draft-confirm'); button.disabled=true; button.textContent='Saving…';
+      try {
+        const expense = {id:crypto.randomUUID(),title:draft.title,amount:draft.amount,category:draft.category||'other',payerId:Object.keys(contributions)[0],contributions,shares,date:new Date().toISOString().slice(0,10),splitMethod:draft.splitMethod};
+        state.expenses.unshift(expense);
+        if (!await saveState()) {button.disabled=false;button.textContent='Confirm & save';return;}
+        pendingDraft = null;
+        node.querySelectorAll('.draft-open,.draft-confirm').forEach(b=>b.disabled=true);
+        button.textContent='✓ Saved';node.querySelector('.review-disclaimer').textContent='Saved to the ledger';
+        render();showToast(t('expenseSaved'));
+      } finally { confirming=false; }
+    });
   }
   function showSettlementDraft(draft, chatLanguage = 'en') {
     const from = household(draft.fromId), to = household(draft.toId);
@@ -693,7 +765,8 @@
     node?.querySelector('.settlement-confirm')?.addEventListener('click', () => confirmSettlementDraft(draft, node, chatLanguage));
     node?.querySelector('.settlement-cancel')?.addEventListener('click', () => node.remove());
   }
-  function confirmSettlementDraft(draft, node, chatLanguage = 'en') {
+  async function confirmSettlementDraft(draft, node, chatLanguage = 'en') {
+    if (window.KoottuCloud.saving) return showToast('Please wait while your last change is saved.');
     const current = makeSettlements().find(item => item.from === draft.fromId && item.to === draft.toId);
     if (!current || current.amount !== draft.outstanding) {
       node?.remove();
@@ -705,12 +778,20 @@
     }
     state.settlements.push({ id: `s${Date.now()}`, month: monthLabel, from: draft.fromId, to: draft.toId, amount: draft.amount, paid: true, date: new Date().toISOString().slice(0, 10) });
     const remaining = Math.max(0, current.amount - draft.amount);
-    saveState(); render(); showToast(chatLanguage === 'ml' ? `പേയ്മെന്റ് രേഖപ്പെടുത്തി. ഇനി ബാക്കി: ${money(remaining)}.` : `${t('paymentRecorded')} ${money(remaining)}.`);
+    if (!await saveState()) return; render(); showToast(chatLanguage === 'ml' ? `പേയ്മെന്റ് രേഖപ്പെടുത്തി. ഇനി ബാക്കി: ${money(remaining)}.` : `${t('paymentRecorded')} ${money(remaining)}.`);
   }
   async function submitAssistant() {
+    if (assistantBusy) return;
+    if (window.KoottuCloud.enabled && !window.KoottuCloud.signedIn) return showToast('Sign in to use the shared Gemma assistant. Private expense entry still works.', true);
     const input = document.getElementById('assistant-input');
     const text = input?.value.trim() || '';
     if (!text && !selectedReceipt) return;
+    assistantBusy = true;
+    const generation = chatGeneration;
+    assistantAbort = new AbortController();
+    const sendButton = document.querySelector('.send-button');
+    if (sendButton) { sendButton.disabled = true; sendButton.textContent = '…'; }
+    try {
     const receiptToSend = selectedReceipt;
     if (text || receiptToSend) appendMessage(text || (detectChatLanguage(text) === 'ml' ? 'രസീത് അയച്ചു' : 'Receipt attached'), 'user', false, receiptMessageMarkup(receiptToSend));
     const chatLanguage = detectChatLanguage(text);
@@ -727,6 +808,7 @@
     const chatNode = appendMessage(chatLanguage === 'ml' ? 'ഒരു നിമിഷം…' : (gemmaStatusChecked ? 'Just a sec…' : t('assistantChecking')));
     const bubble = chatNode?.querySelector('.chat-bubble');
     if (!gemmaStatusChecked && !localAnswer) await checkGemma();
+    if (generation !== chatGeneration) return;
     if (!geminiConfigured && !gemmaConnected) {
       chatNode?.remove();
       if (localAnswer) { appendMessage(localAnswer); return; }
@@ -747,18 +829,21 @@
         text,
         language: chatLanguage,
         currentUserId: state.currentHouseholdId,
+        conversation: conversation.slice(0,-1),
+        pendingDraft,
         households: activeHouseholds().map(({ id, name, unit }) => ({ id, name, unit })),
         localBalances: balances,
         settlementSuggestions: makeSettlements(balances).map(({ from, to, amount }) => ({ fromId: from, from: household(from).name, toId: to, to: household(to).name, amount })),
         monthlySpending: { month: monthKey, total: monthExpenses.reduce((sum, expense) => sum + (Number(expense.amount) || 0), 0), expenseCount: monthExpenses.length, byCategory: categoryTotals },
-        recentExpenses: state.expenses.slice(-30).reverse().map(expense => ({ title: expense.title, amount: expense.amount, category: expense.category, payerName: contributorLabel(expense), contributions: expenseContributions(expense), shares: expense.shares, date: expense.date })),
+        recentExpenses: state.expenses.slice(0,30).map(expense => ({ title: expense.title, amount: expense.amount, category: expense.category, payerName: contributorLabel(expense), contributions: expenseContributions(expense), shares: expense.shares, date: expense.date })),
         receipt: receiptToSend ? { mimeType: receiptToSend.mimeType, data: receiptToSend.data } : null
       };
-      const response = await fetch('/api/parse-expense', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await appFetch('/api/parse-expense', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: assistantAbort.signal });
       const result = await response.json();
+      if (generation !== chatGeneration) return;
       if (!response.ok) throw new Error(result.error || t('assistantError'));
       if (bubble) bubble.remove();
-      if (deterministicAnswer) appendMessage(localAnswer);
+      if (deterministicAnswer) appendMessage(result.response || localAnswer);
       else if (result.kind === 'settlement') {
         if (state.households.some(home => home.id === result.fromId) && state.households.some(home => home.id === result.toId) && Number(result.amount) > 0 && Number(result.outstanding) >= Number(result.amount)) {
           showSettlementDraft({ fromId: result.fromId, toId: result.toId, amount: Math.round(result.amount), outstanding: Math.round(result.outstanding), response: result.response || null }, chatLanguage);
@@ -775,7 +860,7 @@
         }
       }
       else if (result.amount > 0) {
-        if (result.response) appendMessage(result.response);
+        if (result.response) appendMessage(/\b(saved|added|recorded)\b/i.test(result.response) ? 'I’ve prepared the draft. Check the details below before saving.' : result.response);
         const participants = (result.participantIds || []).filter(id => activeHouseholds().some(home => home.id === id));
         const contributions = result.contributions && typeof result.contributions === 'object' ? Object.fromEntries(Object.entries(result.contributions).filter(([id, value]) => activeHouseholds().some(home => home.id === id) && Number(value) > 0)) : {};
         const draft = { title: result.title || t('buildingExpense'), amount: Math.round(result.amount), category: result.category || 'other', payerId: activeHouseholds().some(home => home.id === result.payerId) ? result.payerId : null, contributions, participantIds: participants, splitMethod: result.splitMethod === 'custom' ? 'custom' : 'equal', shares: result.shares || {} };
@@ -793,6 +878,7 @@
           : 'I didn’t quite catch that. Rephrase it, or include an amount if you’re adding an expense.'));
       if (!receiptToSend || Number(result.amount) > 0) clearReceipt();
     } catch (error) {
+      if (generation !== chatGeneration) return;
       const localDraft = receiptToSend ? null : localExpenseDraft(text, chatLanguage);
       if (localDraft) {
         if (bubble) bubble.remove();
@@ -809,7 +895,17 @@
           ? 'ഇപ്പോൾ കൃത്യമായ മറുപടി കിട്ടിയില്ല. ഒന്ന് കൂടി പറയാമോ? Gemma കണക്ഷനും പരിശോധിക്കൂ.'
           : 'Koottu could not get a clear reply just now. Please try again or check the Gemma connection.');
         bubble.classList.add('error');
+        const retry = document.createElement('button');
+        retry.type='button';retry.className='button button-quiet button-small';retry.textContent='Try again';
+        retry.addEventListener('click',()=>{const input=document.getElementById('assistant-input');if(input){input.value=text;submitAssistant();}});
+        bubble.append(document.createElement('br'),retry);
+        if(receiptToSend){const manual=document.createElement('button');manual.type='button';manual.className='button button-quiet button-small';manual.textContent='Enter bill details';manual.addEventListener('click',()=>openModal());bubble.append(manual);}
+
       }
+    }
+    } finally {
+      if (generation === chatGeneration) { assistantBusy = false; assistantAbort = null; }
+      if (sendButton) { sendButton.disabled = false; sendButton.textContent = '➤'; }
     }
   }
   function stopSpeechOutput() {
@@ -832,7 +928,7 @@
     speechAbortController = controller;
     showToast(t('speechGenerating'));
     try {
-      const response = await fetch('/api/speak', {
+      const response = await appFetch('/api/speak', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }), signal: controller.signal
       });
@@ -870,7 +966,8 @@
         const prefix = replyLanguage === 'ml' ? 'ml' : 'en';
         const matchingVoice = voices.find(voice => voice.lang.toLowerCase() === voiceLanguage.toLowerCase())
           || voices.find(voice => voice.lang.toLowerCase().startsWith(`${prefix}-`))
-          || voices.find(voice => voice.lang.toLowerCase().startsWith('en-'));
+          || (replyLanguage === 'en' ? voices.find(voice => voice.lang.toLowerCase().startsWith('en-')) : null);
+        if (replyLanguage === 'ml' && !matchingVoice) { showToast('Voice playback is temporarily unavailable. You can read the reply and try the speaker again later.',true); return; }
         if (matchingVoice) utterance.voice = matchingVoice;
         utterance.onerror = () => showToast(t('speechFailed'), true);
         synth.resume();
@@ -898,6 +995,7 @@
     if (browserRecognition) { browserRecognition.stop(); return; }
     if (voiceRecorder?.state === 'recording') { voiceRecorder.stop(); return; }
     const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (geminiConfigured && !voiceCloudLimited && navigator.mediaDevices?.getUserMedia && window.MediaRecorder) { recordVoiceForTranscription(); return; }
     if (Recognition && !browserVoiceFailed) { startBrowserVoice(Recognition); return; }
     recordVoiceForTranscription();
   }
@@ -909,7 +1007,7 @@
     try { recognition = new Recognition(); }
     catch { browserVoiceFailed = true; recordVoiceForTranscription(); return; }
     browserRecognition = recognition;
-    recognition.lang = document.getElementById('voice-language')?.value || 'en-IN';
+    recognition.lang = detectChatLanguage(input.value || lastAssistantReply) === 'ml' ? 'ml-IN' : navigator.language || 'en-IN';
     recognition.continuous = false;
     recognition.interimResults = true;
     const original = input.value.trim();
@@ -1008,14 +1106,15 @@
         reader.onerror = () => reject(new Error(t('micUnavailable')));
         reader.readAsDataURL(blob);
       });
-      const response = await fetch('/api/transcribe', {
+      const response = await appFetch('/api/transcribe', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mimeType, data: dataUrl.split(',')[1] })
       });
       const result = await response.json();
       if (!response.ok) {
+        if(response.status===429) voiceCloudLimited=true;
         const message = response.status === 429 || /quota|limit|resource.exhausted/i.test(result.error || '')
-          ? 'Cloud voice quota reached. Open Koottu in Chrome and refresh to use browser speech, or type your message.'
+          ? 'Cloud voice is busy. Tap the microphone again to try browser dictation, or type your message.'
           : result.error || t('micUnavailable');
         throw new Error(message);
       }
@@ -1037,7 +1136,7 @@
   }
   function updateModelChip() {
     const chip = document.getElementById('model-chip');
-    if (chip) chip.textContent = gemmaConnected ? t('assistantOnline') : !gemmaStatusChecked ? t('assistantChecking') : geminiConfigured ? t('assistantUnreachable') : t('assistantOffline');
+    if (chip) chip.textContent = window.KoottuCloud.enabled && !window.KoottuCloud.signedIn ? 'Sign in for Gemma' : gemmaConnected ? 'Gemma ready' : !gemmaStatusChecked ? 'Connecting…' : geminiConfigured ? 'Reconnect Gemma' : 'AI not configured';
   }
   function clearReceipt() { selectedReceipt = null; const file = document.getElementById('receipt-input'); file.value = ''; const preview = document.getElementById('receipt-preview-wrap'); if (preview) preview.innerHTML = ''; }
   async function prepareReceiptImage(file) {
@@ -1085,7 +1184,7 @@
     if (gemmaCheckPromise) return gemmaCheckPromise;
     gemmaCheckPromise = (async () => {
       try {
-        const response = await fetch('/api/status', { cache: 'no-store' });
+        const response = await appFetch('/api/status', { cache: 'no-store' });
         if (!response.ok) throw new Error('Status check failed.');
         const data = await response.json();
         gemmaConnected = Boolean(data.gemmaReady);
@@ -1114,7 +1213,8 @@
   document.getElementById('share-invite').addEventListener('click', shareInviteLink);
   document.getElementById('roommate-form').addEventListener('submit', addRoommate);
   document.getElementById('help-button').addEventListener('click', showAbout);
-  document.getElementById('building-switcher').addEventListener('click', () => showToast(t('ledgerNoteBody')));
+  document.getElementById('building-switcher').addEventListener('click', () => window.KoottuCloud.profile());
+  document.getElementById('profile-button').addEventListener('click', () => window.KoottuCloud.profile());
   document.getElementById('expense-modal').addEventListener('click', event => { if (event.target.id === 'expense-modal' || event.target.closest('.close-modal')) closeModal(); });
   document.getElementById('about-modal').addEventListener('click', event => {
     if (event.target.id === 'about-modal' || event.target.closest('.close-about')) {
@@ -1137,6 +1237,18 @@
   document.getElementById('receipt-input').addEventListener('change', event => selectReceipt(event.target.files[0]));
   document.addEventListener('keydown', event => { if (event.key === 'Escape') { closeModal(); closeInviteModal(); } if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); if (document.querySelector('.assistant-card')) document.getElementById('assistant-input')?.focus(); } });
   render();
-  if (new URLSearchParams(window.location.search).has('invite')) openInviteModal();
+  window.KoottuCloud.mount({
+    render, toast: showToast, resetChat,
+    restoreGuest: () => { state = loadState(); normalizeState(); },
+    getState: () => state,
+    setState: next => { if (next.currentHouseholdId !== state.currentHouseholdId || next.building?.name !== state.building?.name) resetChat(); state = next; normalizeState(); },
+    busy: () => assistantBusy || voiceStarting || Boolean(browserRecognition) || voiceRecorder?.state === 'recording' || document.querySelector('.modal-backdrop.open') || document.getElementById('assistant-input')?.value.trim(),
+    startGuest: (name, group) => {
+      resetChat();
+      if (!state.households.length) state = structuredClone(defaults);
+      const me = currentHousehold(); me.name = name; me.members = [name]; state.building.name = group;
+      normalizeState(); saveState();
+    }
+  });
   checkGemma();
 })();
