@@ -2,12 +2,28 @@
   "functions": {
     "api/[...path].js": {
       "maxDuration": 120
+    },
+    "api/account.js": {
+      "maxDuration": 60
+    },
+    "api/reminders.js": {
+      "maxDuration": 120
     }
   },
   "crons": [
     {
       "path": "/api/reminders/run",
       "schedule": "30 3 * * 1"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/account/:action",
+      "destination": "/api/account?action=:action"
+    },
+    {
+      "source": "/api/reminders/run",
+      "destination": "/api/reminders"
     }
   ]
 }

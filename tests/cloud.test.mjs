@@ -53,3 +53,11 @@ test('phone verification requires consent and cannot mark an unapproved code ver
   approved=true;await notificationAccount('confirm-phone',{code:'123456'},{user:{id:'u'},token:'member-token'});assert.equal(marked,true);
  }finally{global.fetch=old;for(const k of Object.keys(settings)){if(previous[k]===undefined)delete process.env[k];else process.env[k]=previous[k];}}
 });
+test('Vercel adapters preserve nested account actions and protect the reminder worker',async()=>{
+ const account=(await import('../api/account.js')).default;
+ const reminders=(await import('../api/reminders.js')).default;
+ let status,body;const res={setHeader(){},writeHead(n){status=n},end(value){body=JSON.parse(String(value))}};
+ await account({url:'/api/account?action=config',method:'GET',headers:{host:'localhost'},query:{action:'config'}},res);
+ assert.equal(status,200);assert.deepEqual(body,{enabled:true});
+ await reminders({url:'/api/reminders',method:'GET',headers:{host:'localhost'}},res);assert.equal(status,401);
+});
